@@ -1,10 +1,11 @@
 
 import './App.css'
+import CodeEditor from './CodeEditor'
 
 function App() {
 
   return (
-    <h1>hello</h1>
+    <CodeEditor/>
   )
 }
 
