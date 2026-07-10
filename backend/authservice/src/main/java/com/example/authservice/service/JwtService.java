@@ -13,16 +13,20 @@ import com.example.authservice.entity.User;
 
 @Service
 public class JwtService {
+
     @Value("${SECRETKEY}")
     private String key;
-    private final SecretKey k = Keys.hmacShaKeyFor(key.getBytes());
-    Date now = new Date();
+
+    private SecretKey getSigningKey(){
+        return Keys.hmacShaKeyFor(key.getBytes());
+    }
+
     public String generateToken(User user){
         return Jwts.builder()
             .subject(user.getEmail())
             .issuedAt(new Date())
-            .expiration(new Date(now.getTime()+(60*1000*15)))
-            .signWith(k)
+            .expiration(new Date(System.currentTimeMillis()+(60*1000*15)))
+            .signWith(getSigningKey())
             .compact();
     }
 }

@@ -7,6 +7,8 @@ import com.example.authservice.entity.User;
 import com.example.authservice.service.JwtService;
 import com.example.authservice.service.UserService;
 
+import jakarta.validation.Valid;
+
 import java.util.Optional;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,17 +31,18 @@ public class UserController {
     }
 
     @PostMapping("/signup")
-    public String signupMethod(@RequestBody User user) {
+    public String signupMethod(@Valid @RequestBody User user) {
+        if(serv.getUserByEmail(user.getEmail()).isPresent()) return "Email already exists";
         serv.saveUser(user);
         return jwtservice.generateToken(user);
     }
 
     @PostMapping("/login")
-    public String loginMethod(@RequestBody User user) {
+    public String loginMethod(@Valid @RequestBody User user) {
         Optional<User> optdbuser = serv.getUserByEmail(user.getEmail());
         if(optdbuser.isEmpty()) return "authentication failed";
         User dbuser = optdbuser.get();
-        if (encoder.matches(user.getPassword(), dbuser.getPassword())) return jwtservice.generateToken(user);
+        if (encoder.matches(user.getPassword(), dbuser.getPassword())) return jwtservice.generateToken(dbuser);
         else return "authentication failed";
     }
     
