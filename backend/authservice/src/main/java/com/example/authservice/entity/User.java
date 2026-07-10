@@ -12,6 +12,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+//use dto instead of this in login and signiup afterwards 
+
 @Entity
 @AllArgsConstructor
 @NoArgsConstructor
