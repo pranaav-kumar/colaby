@@ -2,15 +2,11 @@ package com.example.authservice.service;
 
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.example.authservice.entity.User;
 import com.example.authservice.repository.UserRepository;
-
-import jakarta.annotation.PostConstruct;
-
 
 @Service
 public class UserService {
@@ -28,7 +24,6 @@ public class UserService {
         return repo.save(user);
          
     }
-
 
     public Optional<User> getUserByEmail(String email){
         return repo.getUserByEmail(email);
