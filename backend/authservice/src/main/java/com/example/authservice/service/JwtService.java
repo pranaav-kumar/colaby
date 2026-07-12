@@ -21,7 +21,7 @@ public class JwtService {
         return Keys.hmacShaKeyFor(key.getBytes());
     }
 
-    public String generateToken(User user){
+    public String generateAccessToken(User user){
         return Jwts.builder()
             .subject(user.getEmail()) //subject just as the email for now as we have only one rle for not this isnt a problem, but when we have multip[le roles we should change this
             .issuedAt(new Date())

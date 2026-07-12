@@ -1,5 +1,6 @@
 package com.example.authservice.service;
 
+import com.example.authservice.dto.AuthResponse;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -11,19 +12,21 @@ import com.example.authservice.entity.User;
 @Service
 public class AuthenticationService {
 
+    private final RefreshTokenService refreshTokenService;
     private final UserService userService;
     private final PasswordEncoder encoder;
     private final JwtService jwtService;
 
     public AuthenticationService(UserService userService,
                                  PasswordEncoder encoder,
-                                 JwtService jwtService) {
+                                 JwtService jwtService, RefreshTokenService refreshTokenService) {
         this.userService = userService;
         this.encoder = encoder;
         this.jwtService = jwtService;
+        this.refreshTokenService = refreshTokenService;
     }
 
-    public String signup(User user) {
+    public AuthResponse signup(User user) {
 
         Optional<User> existingUser = userService.getUserByEmail(user.getEmail());
 
@@ -32,10 +35,12 @@ public class AuthenticationService {
         }
 
         userService.saveUser(user);
-        return jwtService.generateToken(user);
+        String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = refreshTokenService.createRefreshToken(user.getEmail());
+        return new AuthResponse(accessToken,refreshToken);
     }
 
-    public String login(User user) {
+    public AuthResponse login(User user) {
         User dbUser = userService.getUserByEmail(user.getEmail())
                 .orElseThrow(() -> new RuntimeException("Invalid email or password"));
 
@@ -43,6 +48,8 @@ public class AuthenticationService {
             throw new RuntimeException("Invalid email or password");
         }
 
-        return jwtService.generateToken(dbUser);
+        String accessToken = jwtService.generateAccessToken(dbUser);
+        String refreshToken = refreshTokenService.createRefreshToken(dbUser.getEmail());
+        return new AuthResponse(accessToken,refreshToken);
     }
 }
