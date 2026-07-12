@@ -3,6 +3,9 @@ package com.example.authservice.controller;
 import com.example.authservice.service.JwtService;
 import com.example.authservice.service.RefreshTokenService;
 import com.example.authservice.service.UserService;
+
+import jakarta.validation.Valid;
+
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,7 +34,7 @@ public class UserController {
     }
 
     @PostMapping("/signup")
-    public AuthResponse signup(@RequestBody User user) {
+    public AuthResponse signup(@Valid @RequestBody User user) {
         return authService.signup(user);
     }
 
