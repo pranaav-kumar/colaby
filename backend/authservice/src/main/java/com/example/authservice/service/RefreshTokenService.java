@@ -1,6 +1,8 @@
 package com.example.authservice.service;
 
 import com.example.authservice.repository.RefreshTokenRepository;
+
+import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
@@ -21,7 +23,7 @@ public class RefreshTokenService {
     @Value("${REFRESH_TOKEN_EXPIRY}")
     private Long expiry;
 
-    RefreshTokenService(RefreshTokenRepository refreshTokenRepository) {
+    public RefreshTokenService(RefreshTokenRepository refreshTokenRepository) {
         this.refreshTokenRepository = refreshTokenRepository;
     }
 
@@ -45,6 +47,7 @@ public class RefreshTokenService {
         return !Instant.now().isAfter(stored.get().getExpiryDate());
     }
 
+    @Transactional
     public void deleteToken(String token){
         refreshTokenRepository.deleteByToken(token);
     }

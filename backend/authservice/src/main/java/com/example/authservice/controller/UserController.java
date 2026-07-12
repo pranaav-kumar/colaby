@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.authservice.dto.AuthResponse;
+import com.example.authservice.dto.LoginRequest;
 import com.example.authservice.dto.RefreshRequest;
+import com.example.authservice.dto.SignupRequest;
 import com.example.authservice.entity.User;
 import com.example.authservice.service.AuthenticationService;
 
@@ -26,7 +28,7 @@ public class UserController {
     private final RefreshTokenService refreshTokenService;
     private final AuthenticationService authService;
 
-    public UserController(AuthenticationService authService, RefreshTokenService refreshTokenService, UserService userService, JwtService jwtService) {
+    public UserController(AuthenticationService authService, RefreshTokenService refreshTokenService, UserService userService, JwtService jwtService){
         this.authService = authService;
         this.refreshTokenService = refreshTokenService;
         this.userService = userService;
@@ -34,13 +36,13 @@ public class UserController {
     }
 
     @PostMapping("/signup")
-    public AuthResponse signup(@Valid @RequestBody User user) {
-        return authService.signup(user);
+    public AuthResponse signup(@Valid @RequestBody SignupRequest request) {
+        return authService.signup(request);
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@RequestBody User user) {
-        return authService.login(user);
+    public AuthResponse login(@RequestBody LoginRequest request) {
+        return authService.login(request);
     }
 
     @PostMapping("/refresh")
