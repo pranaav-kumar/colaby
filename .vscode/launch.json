@@ -8,7 +8,8 @@
             "mainClass": "com.example.authservice.AuthserviceApplication",
             "projectName": "authservice",
             "args": "",
-            "envFile": "${workspaceFolder}/.env"
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": " -Dcom.sun.management.jmxremote"
         },
         {
             "type": "java",
@@ -17,6 +18,27 @@
             "cwd": "${workspaceFolder}",
             "mainClass": "com.example.apigateway.ApigatewayApplication",
             "projectName": "apigateway",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": " -Dcom.sun.management.jmxremote"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-DiscoveryserviceApplication<discoveryservice>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.example.discoveryservice.DiscoveryserviceApplication",
+            "projectName": "discoveryservice",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-UserdetailsserviceApplication<userdetailsservice>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.example.userdetailsservice.UserdetailsserviceApplication",
+            "projectName": "userdetailsservice",
             "args": "",
             "envFile": "${workspaceFolder}/.env"
         }
