@@ -13,3 +13,5 @@ public class AuthserviceApplication {
 	}
 
 }
+
+// more needed: Oauth integration for github and google login, email verification
