@@ -1,6 +1,8 @@
 package com.example.authservice.service;
 
+import com.example.authservice.client.UserDetailFeignClient;
 import com.example.authservice.dto.AuthResponse;
+import com.example.authservice.dto.CreateUserDetailRequest;
 import com.example.authservice.dto.LoginRequest;
 import com.example.authservice.dto.SignupRequest;
 
@@ -19,14 +21,18 @@ public class AuthenticationService {
     private final UserService userService;
     private final PasswordEncoder encoder;
     private final JwtService jwtService;
+    private final UserDetailFeignClient userDetailFeignClient;
 
     public AuthenticationService(UserService userService,
                                  PasswordEncoder encoder,
-                                 JwtService jwtService, RefreshTokenService refreshTokenService) {
+                                 JwtService jwtService,
+                                 RefreshTokenService refreshTokenService,
+                                 UserDetailFeignClient userDetailFeignClient) {
         this.userService = userService;
         this.encoder = encoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
+        this.userDetailFeignClient = userDetailFeignClient;
     }
 
     public AuthResponse signup(SignupRequest request) {
@@ -40,10 +46,13 @@ public class AuthenticationService {
         user.setEmail(request.email());
         user.setPassword(request.password()); // still raw here — hashing happens inside saveUser()
 
-        userService.saveUser(user);
+        User savedUser = userService.saveUser(user);
 
-        String accessToken = jwtService.generateAccessToken(user);
-        String refreshToken = refreshTokenService.createRefreshToken(user.getEmail());
+        // Create user detail in userdetailsservice with the same UUID
+        userDetailFeignClient.createUser(new CreateUserDetailRequest(savedUser.getId()));
+
+        String accessToken = jwtService.generateAccessToken(savedUser);
+        String refreshToken = refreshTokenService.createRefreshToken(savedUser.getId());
         return new AuthResponse(accessToken, refreshToken);
     }
 
@@ -56,7 +65,9 @@ public class AuthenticationService {
         }
 
         String accessToken = jwtService.generateAccessToken(dbUser);
-        String refreshToken = refreshTokenService.createRefreshToken(dbUser.getEmail());
+        // Delete old refresh tokens for this user to prevent accumulation
+        refreshTokenService.deleteTokensByUserId(dbUser.getId());
+        String refreshToken = refreshTokenService.createRefreshToken(dbUser.getId());
         return new AuthResponse(accessToken, refreshToken);
     }
 }

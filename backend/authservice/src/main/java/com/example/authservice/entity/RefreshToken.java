@@ -1,6 +1,7 @@
 package com.example.authservice.entity;
 
 import java.time.Instant;
+import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -17,11 +18,11 @@ import lombok.NoArgsConstructor;
 @Data
 public class RefreshToken {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(nullable = false)
-    private String email;
+    private UUID userId;
 
     @Column(nullable = false, unique = true)
     private String token;

@@ -1,6 +1,8 @@
 package com.example.userdetailsservice.service;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
@@ -16,16 +18,25 @@ public class UserDetailService {
         this.userDetailRepository=userDetailRepository;
     }
 
-    public String addProfile(UserDetail user){
-        userDetailRepository.save(user);
-        return "user "+user+" added";
+    public UserDetail addProfile(UserDetail user){
+        user.setUpdatedAt(Instant.now());
+        return userDetailRepository.save(user);
     }
 
-    public UserDetail getProfileById(Long id){
-        return userDetailRepository.getReferenceById(id);
+    public UserDetail getProfileById(UUID id){
+        return userDetailRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User profile not found"));
     }
 
     public List<UserDetail> getAllProfile(){
         return userDetailRepository.findAll();
+    }
+
+    public void createUser(UUID userId){
+        UserDetail userDetail = new UserDetail();
+        userDetail.setUserId(userId);
+        userDetail.setCreatedAt(Instant.now());
+        userDetail.setUpdatedAt(Instant.now());
+        userDetailRepository.save(userDetail);
     }
 }

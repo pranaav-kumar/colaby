@@ -7,6 +7,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -27,12 +28,12 @@ public class RefreshTokenService {
         this.refreshTokenRepository = refreshTokenRepository;
     }
 
-    public String createRefreshToken(String email){
+    public String createRefreshToken(UUID userId){
         RefreshToken refreshToken = new RefreshToken();
 
         String token = generateRandomToken();
 
-        refreshToken.setEmail(email);
+        refreshToken.setUserId(userId);
         refreshToken.setExpiryDate(Instant.now().plusMillis(expiry));
         refreshToken.setToken(token);
 
@@ -52,11 +53,17 @@ public class RefreshTokenService {
         refreshTokenRepository.deleteByToken(token);
     }
 
-    public String getEmailFromToken(String token) {
+    public UUID getUserIdFromToken(String token) {
         return refreshTokenRepository.findByToken(token)
-                .map(RefreshToken::getEmail)
+                .map(RefreshToken::getUserId)
                 .orElseThrow(() -> new RuntimeException("Refresh token not found"));
     }
+
+    @Transactional
+    public void deleteTokensByUserId(UUID userId){
+        refreshTokenRepository.deleteByUserId(userId);
+    }
+
     private String generateRandomToken() {
         byte[] randomBytes = new byte[64];
         secureRandom.nextBytes(randomBytes);

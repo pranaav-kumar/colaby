@@ -1,6 +1,7 @@
 package com.example.authservice.service;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,5 +28,9 @@ public class UserService {
 
     public Optional<User> getUserByEmail(String email){
         return repo.getUserByEmail(email);
+    }
+
+    public Optional<User> getUserById(UUID id){
+        return repo.findById(id);
     }
 }
