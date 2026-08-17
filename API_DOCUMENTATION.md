@@ -217,7 +217,6 @@ Authorization: Bearer <accessToken>
 |-------------------|------------|--------------------------------|----------|
 | `fullName`         | string     | Full display name              | ❌        |
 | `userName`         | string     | Unique username                | ❌        |
-| `exp`              | integer    | Experience level               | ❌        |
 | `profileUrl`       | string     | Profile picture URL            | ❌        |
 | `bio`              | string     | Short biography                | ❌        |
 | `githubUrl`        | string     | GitHub profile link            | ❌        |
@@ -226,13 +225,12 @@ Authorization: Bearer <accessToken>
 | `portfolioUrl`     | string     | Portfolio website URL          | ❌        |
 | `openToCollaborate`| boolean    | Availability for collaboration | ❌        |
 
-> **Note**: `userId` in the request body is **ignored** — the server uses the authenticated user's UUID from the JWT.
+> **Note**: `userId` in the request body is **ignored** — the server uses the authenticated user's UUID from the JWT. `exp` is **read-only** and managed automatically by the system based on user contributions (initially 0 on signup).
 
 ```json
 {
   "fullName": "Jane Doe",
   "userName": "janedoe",
-  "exp": 3,
   "bio": "Full-stack developer passionate about open source",
   "skills": ["Java", "Spring Boot", "React", "PostgreSQL"],
   "githubUrl": "https://github.com/janedoe",
@@ -251,7 +249,7 @@ Returns the saved `UserDetail` object with `updatedAt` automatically set.
   "userId": "550e8400-e29b-41d4-a716-446655440000",
   "fullName": "Jane Doe",
   "userName": "janedoe",
-  "exp": 3,
+  "exp": 0,
   "profileUrl": null,
   "bio": "Full-stack developer passionate about open source",
   "githubUrl": "https://github.com/janedoe",
@@ -288,7 +286,7 @@ Authorization: Bearer <accessToken>
   "userId": "550e8400-e29b-41d4-a716-446655440000",
   "fullName": "Jane Doe",
   "userName": "janedoe",
-  "exp": 3,
+  "exp": 0,
   "profileUrl": null,
   "bio": "Full-stack developer passionate about open source",
   "githubUrl": "https://github.com/janedoe",
@@ -517,7 +515,7 @@ When a downstream service is unavailable, the gateway returns `503 Service Unava
 | `user_id`           | UUID      | Primary Key (same as auth service `users.id`) |
 | `full_name`         | VARCHAR   |             |
 | `user_name`         | VARCHAR   |             |
-| `exp`               | INTEGER   |             |
+| `exp`               | INTEGER   | DEFAULT 0, system-managed (earned via contributions) |
 | `profile_url`       | VARCHAR   |             |
 | `bio`               | VARCHAR   |             |
 | `github_url`        | VARCHAR   |             |

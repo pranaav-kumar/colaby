@@ -19,6 +19,14 @@ public class UserDetailService {
     }
 
     public UserDetail addProfile(UserDetail user){
+        UserDetail existing = userDetailRepository.findById(user.getUserId()).orElse(null);
+        if (existing != null) {
+            user.setExp(existing.getExp());
+            user.setCreatedAt(existing.getCreatedAt() != null ? existing.getCreatedAt() : Instant.now());
+        } else {
+            user.setExp(0);
+            user.setCreatedAt(Instant.now());
+        }
         user.setUpdatedAt(Instant.now());
         return userDetailRepository.save(user);
     }
@@ -35,6 +43,7 @@ public class UserDetailService {
     public void createUser(UUID userId){
         UserDetail userDetail = new UserDetail();
         userDetail.setUserId(userId);
+        userDetail.setExp(0);
         userDetail.setCreatedAt(Instant.now());
         userDetail.setUpdatedAt(Instant.now());
         userDetailRepository.save(userDetail);
