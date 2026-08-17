@@ -13,3 +13,6 @@ public class UserdetailsserviceApplication {
 	}
 
 }
+
+//add some annotations in the entity to make them more polished
+//add exception handling for everyhting
