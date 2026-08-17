@@ -16,6 +16,8 @@ import com.example.authservice.dto.SignupRequest;
 import com.example.authservice.entity.User;
 import com.example.authservice.service.AuthenticationService;
 
+import java.util.UUID;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -41,7 +43,7 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@RequestBody LoginRequest request) {
+    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
     }
 
@@ -53,9 +55,9 @@ public class UserController {
             throw new RuntimeException("invalid or expired refresh token");
         }
 
-        String email = refreshTokenService.getEmailFromToken(refreshToken);
+        UUID userId = refreshTokenService.getUserIdFromToken(refreshToken);
 
-        User user = userService.getUserByEmail(email)
+        User user = userService.getUserById(userId)
                 .orElseThrow(() -> new RuntimeException("user no longer exists"));
 
         String accessToken = jwtService.generateAccessToken(user);
@@ -67,6 +69,6 @@ public class UserController {
     public String logout(@RequestBody RefreshRequest request) {
         refreshTokenService.deleteToken(request.refreshToken());
         return "logged out";
-}
+    }
     
 }

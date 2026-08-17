@@ -14,6 +14,6 @@ public class ApigatewayApplication {
 
 }
 
-// more needed: jwt filter, correlation ID filter, global exception handler, fallback controller for circuit breaker
+// more needed: correlation ID filter, global exception handler
 
-//done: api gateway, rate limiting, redis, 
+//done: api gateway, rate limiting, redis, jwt auth filter, fallback controller for circuit breaker

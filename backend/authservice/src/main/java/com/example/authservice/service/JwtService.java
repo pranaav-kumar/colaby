@@ -1,6 +1,7 @@
 package com.example.authservice.service;
 
 import java.util.Date;
+import java.util.UUID;
 
 import javax.crypto.SecretKey;
 
@@ -23,7 +24,7 @@ public class JwtService {
 
     public String generateAccessToken(User user){
         return Jwts.builder()
-            .subject(user.getEmail()) //subject just as the email for now as we have only one rle for not this isnt a problem, but when we have multip[le roles we should change this
+            .subject(user.getId().toString())
             .issuedAt(new Date())
             .expiration(new Date(System.currentTimeMillis()+(60*1000*15)))
             .signWith(getSigningKey())
@@ -32,7 +33,7 @@ public class JwtService {
         
     public Boolean isValid(String token){
         try{
-            extractEmail(token);
+            extractUserId(token);
             return true;
         }
         catch(Exception e){
@@ -40,12 +41,13 @@ public class JwtService {
         }
     }
 
-    public String extractEmail(String token){
-        return Jwts.parser()
+    public UUID extractUserId(String token){
+        String subject = Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload()
                 .getSubject();
+        return UUID.fromString(subject);
     }
 }

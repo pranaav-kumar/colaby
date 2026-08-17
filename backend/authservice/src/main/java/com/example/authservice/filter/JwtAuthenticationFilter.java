@@ -1,6 +1,7 @@
 package com.example.authservice.filter;
 
 import java.io.IOException;
+import java.util.UUID;
 
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -42,10 +43,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
 
         if (jwtService.isValid(token)) {
-            String email = jwtService.extractEmail(token);
+            UUID userId = jwtService.extractUserId(token);
 
             UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(email, null, Collections.emptyList());
+                    new UsernamePasswordAuthenticationToken(userId.toString(), null, Collections.emptyList());
 
             SecurityContextHolder.getContext().setAuthentication(authToken);
         }
