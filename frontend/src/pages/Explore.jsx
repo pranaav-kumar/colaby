@@ -136,7 +136,7 @@ export default function Explore() {
             </div>
           ) : filteredProfiles.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon">🔍</div>
+              <div className="empty-icon"></div>
               <h2 className="empty-title">No developers found</h2>
               <p className="empty-desc">
                 {searchQuery || selectedSkill || onlyCollaborators

@@ -21,14 +21,24 @@ public class UserDetailService {
     public UserDetail addProfile(UserDetail user){
         UserDetail existing = userDetailRepository.findById(user.getUserId()).orElse(null);
         if (existing != null) {
-            user.setExp(existing.getExp());
-            user.setCreatedAt(existing.getCreatedAt() != null ? existing.getCreatedAt() : Instant.now());
+            // Update the managed entity's editable fields
+            existing.setFullName(user.getFullName());
+            existing.setUserName(user.getUserName());
+            existing.setProfileUrl(user.getProfileUrl());
+            existing.setBio(user.getBio());
+            existing.setGithubUrl(user.getGithubUrl());
+            existing.setLinkedinUrl(user.getLinkedinUrl());
+            existing.setPortfolioUrl(user.getPortfolioUrl());
+            existing.setOpenToCollaborate(user.getOpenToCollaborate());
+            existing.setSkills(user.getSkills() != null ? user.getSkills() : List.of());
+            existing.setUpdatedAt(Instant.now());
+            return userDetailRepository.save(existing);
         } else {
             user.setExp(0);
             user.setCreatedAt(Instant.now());
+            user.setUpdatedAt(Instant.now());
+            return userDetailRepository.save(user);
         }
-        user.setUpdatedAt(Instant.now());
-        return userDetailRepository.save(user);
     }
 
     public UserDetail getProfileById(UUID id){
