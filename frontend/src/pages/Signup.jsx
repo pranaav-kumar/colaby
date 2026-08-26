@@ -43,13 +43,13 @@ function Signup() {
     try {
       await signup(email, password);
 
-      setSuccess('Account created successfully! Redirecting to login…');
+      setSuccess('Account created successfully! Setting up your profile…');
       setEmail('');
       setPassword('');
       setFieldErrors({});
 
-      // Redirect to login after brief delay
-      setTimeout(() => navigate('/login'), 1500);
+      // Redirect to profile setup
+      setTimeout(() => navigate('/profile?setup=true', { replace: true }), 1000);
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {

@@ -20,7 +20,25 @@ import api from './axios';
 export function updateProfile(profileData) {
   // Ensure we don't send userId or exp (handled server-side)
   const { userId: _userId, exp: _exp, createdAt: _createdAt, updatedAt: _updatedAt, ...payload } = profileData;
-  return api.put('/users/details', payload);
+
+  // Convert empty strings to null for optional fields and ensure skills is always an array
+  const cleaned = {
+    ...payload,
+    fullName: payload.fullName?.trim() || null,
+    userName: payload.userName?.trim() || null,
+    profileUrl: payload.profileUrl?.trim() || null,
+    bio: payload.bio?.trim() || null,
+    githubUrl: payload.githubUrl?.trim() || null,
+    linkedinUrl: payload.linkedinUrl?.trim() || null,
+    portfolioUrl: payload.portfolioUrl?.trim() || null,
+    skills: Array.isArray(payload.skills) ? payload.skills : [],
+    // Backend entity uses primitive `int` for exp — Jackson cannot map null
+    // into a primitive, so we must supply a default. The backend service
+    // ignores this value (preserves existing exp on updates, forces 0 on creates).
+    
+  };
+
+  return api.put('/users/details', cleaned);
 }
 
 /**

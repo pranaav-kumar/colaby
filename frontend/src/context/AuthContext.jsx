@@ -74,6 +74,8 @@ export function AuthProvider({ children }) {
     setLoading(true);
     try {
       const response = await signupApi(email, password);
+      const { accessToken: newAccess, refreshToken: newRefresh } = response.data;
+      handleTokenUpdate(newAccess, newRefresh);
       return response.data;
     } finally {
       setLoading(false);

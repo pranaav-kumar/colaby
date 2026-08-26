@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/useAuth';
 import { getProfileById, updateProfile } from '../api/usersApi';
@@ -6,6 +7,9 @@ import { extractErrorMessage } from '../api/axios';
 
 export default function Profile() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isSetupMode = searchParams.get('setup') === 'true';
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -117,7 +121,13 @@ export default function Profile() {
       }));
 
       setSuccess('Profile updated successfully!');
-      setTimeout(() => setSuccess(''), 4000);
+
+      if (isSetupMode) {
+        // After completing profile setup, redirect to home
+        setTimeout(() => navigate('/explore', { replace: true }), 1000);
+      } else {
+        setTimeout(() => setSuccess(''), 4000);
+      }
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -146,9 +156,11 @@ export default function Profile() {
         <div className="container profile-container">
           <div className="page-header">
             <div>
-              <h1 className="page-title">User Profile</h1>
+              <h1 className="page-title">{isSetupMode ? 'Set Up Your Profile' : 'User Profile'}</h1>
               <p className="page-subtitle">
-                Manage your developer details and collaboration availability
+                {isSetupMode
+                  ? 'Complete your profile to get started with Colaby'
+                  : 'Manage your developer details and collaboration availability'}
               </p>
             </div>
             {meta.userId && (
@@ -422,7 +434,7 @@ export default function Profile() {
                 >
                   <span className="btn-content">
                     {saving && <span className="spinner" />}
-                    {saving ? 'Saving Profile…' : 'Save Changes'}
+                    {saving ? 'Saving Profile…' : isSetupMode ? 'Complete Setup' : 'Save Changes'}
                   </span>
                 </button>
               </div>

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -24,13 +25,13 @@ public class UserDetail {
     private String userName;
 
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private int exp = 0;
+    private Integer exp = 0;
 
     private String profileUrl;
     private String bio;
     private String githubUrl;
-    @ElementCollection
-    private List<String> skills;
+    @ElementCollection(fetch = FetchType.EAGER)
+    private List<String> skills = new java.util.ArrayList<>();
     private String linkedinUrl;
     private String portfolioUrl;
     private Boolean openToCollaborate;
