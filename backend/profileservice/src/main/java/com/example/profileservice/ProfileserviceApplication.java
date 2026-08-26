@@ -11,3 +11,8 @@ public class ProfileserviceApplication {
 	}
 
 }
+
+/*
+basic profile's api's are already present in the userdetails service,
+need to integrate the  projects done and contribution to it
+*/
