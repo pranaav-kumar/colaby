@@ -126,8 +126,10 @@ Content-Type: application/json
 ```
 
 **Response `200 OK`:**
-```
-"logged out"
+```json
+{
+  "message": "logged out"
+}
 ```
 
 ---

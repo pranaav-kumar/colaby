@@ -190,8 +190,10 @@ POST /auth/logout
 
 **Response** — `200 OK`
 
-```
-"logged out"
+```json
+{
+  "message": "logged out"
+}
 ```
 
 ---
