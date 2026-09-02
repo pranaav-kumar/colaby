@@ -45,7 +45,12 @@ public class RefreshTokenService {
         Optional<RefreshToken> stored = refreshTokenRepository.findByToken(token);
         if(stored.isEmpty()) return false;
 
-        return !Instant.now().isAfter(stored.get().getExpiryDate());
+        if (Instant.now().isAfter(stored.get().getExpiryDate())) {
+            // Eagerly delete expired token to keep the table clean
+            refreshTokenRepository.deleteByToken(token);
+            return false;
+        }
+        return true;
     }
 
     @Transactional

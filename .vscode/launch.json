@@ -52,6 +52,16 @@
             "projectName": "profileservice",
             "args": "",
             "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-CommunityserviceApplication<communityservice>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.example.communityservice.CommunityserviceApplication",
+            "projectName": "communityservice",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }

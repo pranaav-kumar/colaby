@@ -39,7 +39,7 @@ public class AuthenticationService {
         Optional<User> existingUser = userService.getUserByEmail(request.email());
 
         if (existingUser.isPresent()) {
-            throw new RuntimeException("Email already exists");
+            throw new IllegalArgumentException("An account with this email already exists");
         }
 
         User user = new User();
