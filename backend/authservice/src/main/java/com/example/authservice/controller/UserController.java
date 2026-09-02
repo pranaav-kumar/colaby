@@ -4,6 +4,8 @@ import com.example.authservice.service.JwtService;
 import com.example.authservice.service.RefreshTokenService;
 import com.example.authservice.service.UserService;
 
+import java.util.Map;
+
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -66,9 +68,9 @@ public class UserController {
 
 
     @PostMapping("/logout")
-    public String logout(@RequestBody RefreshRequest request) {
+    public Map<String, String> logout(@RequestBody RefreshRequest request) {
         refreshTokenService.deleteToken(request.refreshToken());
-        return "logged out";
+        return Map.of("message", "logged out");
     }
     
 }
