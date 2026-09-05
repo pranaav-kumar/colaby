@@ -31,6 +31,14 @@ export default function Navbar() {
               Explore
             </NavLink>
             <NavLink
+              to="/community"
+              className={({ isActive }) =>
+                `nav-link${isActive ? ' active' : ''}`
+              }
+            >
+              Community
+            </NavLink>
+            <NavLink
               to="/profile"
               className={({ isActive }) =>
                 `nav-link${isActive ? ' active' : ''}`

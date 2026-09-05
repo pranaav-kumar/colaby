@@ -42,8 +42,9 @@ export default function Explore() {
 
   // Filter profiles based on search query, open to collab toggle, and selected skill
   const filteredProfiles = useMemo(() => {
-    return profiles.filter((p) => {
-      const q = searchQuery.toLowerCase().trim();
+    const q = searchQuery.toLowerCase().trim();
+
+    const filtered = profiles.filter((p) => {
       const matchesSearch =
         !q ||
         (p.fullName && p.fullName.toLowerCase().includes(q)) ||
@@ -60,6 +61,23 @@ export default function Explore() {
 
       return matchesSearch && matchesCollab && matchesSkill;
     });
+
+    // Sort results deterministically: name matches first, then alphabetical
+    if (q) {
+      filtered.sort((a, b) => {
+        const aNameMatch = (a.fullName && a.fullName.toLowerCase().includes(q)) ||
+                           (a.userName && a.userName.toLowerCase().includes(q));
+        const bNameMatch = (b.fullName && b.fullName.toLowerCase().includes(q)) ||
+                           (b.userName && b.userName.toLowerCase().includes(q));
+        if (aNameMatch && !bNameMatch) return -1;
+        if (!aNameMatch && bNameMatch) return 1;
+        const aName = (a.fullName || a.userName || '').toLowerCase();
+        const bName = (b.fullName || b.userName || '').toLowerCase();
+        return aName.localeCompare(bName);
+      });
+    }
+
+    return filtered;
   }, [profiles, searchQuery, onlyCollaborators, selectedSkill]);
 
   return (
@@ -197,7 +215,7 @@ export default function Explore() {
                     </div>
 
                     <div className="developer-exp-badge" title="Experience Points">
-                      ⚡ {profile.exp || 0}
+                      {profile.exp || 0} EXP
                     </div>
                   </div>
 
