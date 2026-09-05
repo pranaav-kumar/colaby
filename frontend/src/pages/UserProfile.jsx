@@ -98,7 +98,7 @@ export default function UserProfile() {
                       {profile.fullName || profile.userName || 'Anonymous Developer'}
                     </h1>
                     <div className="exp-badge" title="Developer Experience Points">
-                      ⚡ {profile.exp || 0} EXP
+                      {profile.exp || 0} EXP
                     </div>
                   </div>
 

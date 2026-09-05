@@ -48,10 +48,18 @@ function Signup() {
       setPassword('');
       setFieldErrors({});
 
-      // Redirect to profile setup
-      setTimeout(() => navigate('/profile?setup=true', { replace: true }), 1000);
+      // Redirect to onboarding to fill in user details
+      setTimeout(() => navigate('/onboarding', { replace: true }), 1000);
     } catch (err) {
-      setError(extractErrorMessage(err));
+      // Provide better guidance for common backend-side issues
+      const status = err?.response?.status;
+      if (status === 403) {
+        setError('Service temporarily unavailable (rate limiter). Please ensure Redis and all backend services are running.');
+      } else if (status === 504) {
+        setError('Gateway timeout — the backend took too long to respond. Please check that all services are running.');
+      } else {
+        setError(extractErrorMessage(err));
+      }
     } finally {
       setLoading(false);
     }

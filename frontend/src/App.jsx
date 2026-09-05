@@ -5,7 +5,11 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Explore from './pages/Explore';
 import Profile from './pages/Profile';
+import Onboarding from './pages/Onboarding';
 import UserProfile from './pages/UserProfile';
+import Community from './pages/Community';
+import CommunityDetail from './pages/CommunityDetail';
+import PostDetail from './pages/PostDetail';
 
 function App() {
   return (
@@ -21,7 +25,11 @@ function App() {
             <Route path="/" element={<Navigate to="/explore" replace />} />
             <Route path="/explore" element={<Explore />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/users/:id" element={<UserProfile />} />
+            <Route path="/community" element={<Community />} />
+            <Route path="/community/:communityId" element={<CommunityDetail />} />
+            <Route path="/community/:communityId/posts/:postId" element={<PostDetail />} />
           </Route>
 
           {/* Fallback */}
