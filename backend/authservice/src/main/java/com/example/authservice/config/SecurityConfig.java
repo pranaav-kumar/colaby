@@ -23,7 +23,9 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        // Strength 8 instead of default 10: still secure (2^8 rounds), ~4x faster per hash.
+        // This prevents BCrypt from eating into the gateway response-timeout on cold-start signup.
+        return new BCryptPasswordEncoder(8);
     }
 
     @Bean

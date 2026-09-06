@@ -61,6 +61,17 @@
             "mainClass": "com.example.communityservice.CommunityserviceApplication",
             "projectName": "communityservice",
             "args": "",
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": " -Dcom.sun.management.jmxremote"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-ProjectserviceApplication<projectservice>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.example.projectservice.ProjectserviceApplication",
+            "projectName": "projectservice",
+            "args": "",
             "envFile": "${workspaceFolder}/.env"
         }
     ]
