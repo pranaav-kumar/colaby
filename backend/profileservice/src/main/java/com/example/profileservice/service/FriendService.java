@@ -8,8 +8,10 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.profileservice.client.UserLookupClient;
 import com.example.profileservice.dto.FriendRequestResponse;
 import com.example.profileservice.dto.FriendSummary;
+import com.example.profileservice.dto.UserInfo;
 import com.example.profileservice.entity.FriendRequest;
 import com.example.profileservice.entity.Friendship;
 import com.example.profileservice.exception.FriendRequestException;
@@ -22,12 +24,15 @@ public class FriendService {
 
     private final FriendRequestRepository friendRequestRepository;
     private final FriendshipRepository friendshipRepository;
+    private final UserLookupClient userLookupClient;
 
     public FriendService(
             FriendRequestRepository friendRequestRepository,
-            FriendshipRepository friendshipRepository) {
+            FriendshipRepository friendshipRepository,
+            UserLookupClient userLookupClient) {
         this.friendRequestRepository = friendRequestRepository;
         this.friendshipRepository = friendshipRepository;
+        this.userLookupClient = userLookupClient;
     }
 
     // ─── Send a friend request ────────────────────────────────────────────────
@@ -138,7 +143,15 @@ public class FriendService {
     public List<FriendSummary> getFriends(UUID userId) {
         return friendshipRepository.findAllByUserId(userId)
                 .stream()
-                .map(f -> new FriendSummary(f.getFriendId(), f.getSince()))
+                .map(f -> {
+                    UserInfo info = userLookupClient.getUser(f.getFriendId());
+                    return new FriendSummary(
+                            f.getFriendId(),
+                            info != null ? info.userName() : null,
+                            info != null ? info.fullName() : null,
+                            f.getSince()
+                    );
+                })
                 .collect(Collectors.toList());
     }
 
@@ -151,10 +164,16 @@ public class FriendService {
     }
 
     private FriendRequestResponse toResponse(FriendRequest r) {
+        UserInfo sender = userLookupClient.getUser(r.getSenderId());
+        UserInfo receiver = userLookupClient.getUser(r.getReceiverId());
         return new FriendRequestResponse(
                 r.getId(),
                 r.getSenderId(),
+                sender != null ? sender.userName() : null,
+                sender != null ? sender.fullName() : null,
                 r.getReceiverId(),
+                receiver != null ? receiver.userName() : null,
+                receiver != null ? receiver.fullName() : null,
                 r.getStatus(),
                 r.getCreatedAt(),
                 r.getResolvedAt()

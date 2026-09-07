@@ -7,9 +7,11 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.projectservice.client.UserLookupClient;
 import com.example.projectservice.dto.AssignTaskRequest;
 import com.example.projectservice.dto.TaskResponse;
 import com.example.projectservice.dto.UpdateTaskProgressRequest;
+import com.example.projectservice.dto.UserInfo;
 import com.example.projectservice.entity.Project;
 import com.example.projectservice.entity.ProjectTask;
 import com.example.projectservice.exception.ForbiddenException;
@@ -21,10 +23,14 @@ public class TaskService {
 
     private final ProjectTaskRepository taskRepository;
     private final ProjectService projectService;
+    private final UserLookupClient userLookupClient;
 
-    public TaskService(ProjectTaskRepository taskRepository, ProjectService projectService) {
+    public TaskService(ProjectTaskRepository taskRepository,
+                       ProjectService projectService,
+                       UserLookupClient userLookupClient) {
         this.taskRepository = taskRepository;
         this.projectService = projectService;
+        this.userLookupClient = userLookupClient;
     }
 
     /**
@@ -134,11 +140,22 @@ public class TaskService {
     }
 
     private TaskResponse toResponse(ProjectTask task) {
+        UserInfo assignedTo = userLookupClient.getUser(task.getAssignedTo());
+        UserInfo assignedBy = userLookupClient.getUser(task.getAssignedBy());
+        String projectName = null;
+        try {
+            projectName = projectService.findProjectOrThrow(task.getProjectId()).getName();
+        } catch (Exception ignored) {}
         return new TaskResponse(
                 task.getId(),
                 task.getProjectId(),
+                projectName,
                 task.getAssignedTo(),
+                assignedTo != null ? assignedTo.userName() : null,
+                assignedTo != null ? assignedTo.fullName() : null,
                 task.getAssignedBy(),
+                assignedBy != null ? assignedBy.userName() : null,
+                assignedBy != null ? assignedBy.fullName() : null,
                 task.getTitle(),
                 task.getDescription(),
                 task.getProgressPercent(),

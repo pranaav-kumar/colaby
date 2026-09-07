@@ -16,9 +16,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.projectservice.dto.CreateProjectRequest;
+import com.example.projectservice.dto.MemberResponse;
 import com.example.projectservice.dto.ProjectResponse;
 import com.example.projectservice.dto.UpdateProjectRequest;
-import com.example.projectservice.entity.ProjectMember;
 import com.example.projectservice.service.ProjectService;
 
 import jakarta.validation.Valid;
@@ -78,7 +78,7 @@ public class ProjectController {
     }
 
     @GetMapping("/{projectId}/members")
-    public List<ProjectMember> getMembers(
+    public List<MemberResponse> getMembers(
             @RequestHeader("X-User-Id") String userIdHeader,
             @PathVariable UUID projectId) {
         return projectService.getMembers(projectId, UUID.fromString(userIdHeader));

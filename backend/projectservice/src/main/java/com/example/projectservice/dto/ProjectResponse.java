@@ -11,8 +11,11 @@ public record ProjectResponse(
         String techStack,
         String status,
         UUID createdBy,
+        String createdByUserName,
+        String createdByFullName,
         Instant createdAt,
         Instant updatedAt,
         long memberCount,
         boolean isMember
 ) {}
+
