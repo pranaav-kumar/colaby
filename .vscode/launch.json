@@ -66,12 +66,22 @@
         },
         {
             "type": "java",
-            "name": "Spring Boot-ProjectserviceApplication<projectservice>",
+            "name": "Project Service - Instance 1",
             "request": "launch",
             "cwd": "${workspaceFolder}",
             "mainClass": "com.example.projectservice.ProjectserviceApplication",
             "projectName": "projectservice",
-            "args": "",
+            "args": "--server.port=8084",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Project Service - Instance 2",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.example.projectservice.ProjectserviceApplication",
+            "projectName": "projectservice",
+            "args": "--server.port=8085",
             "envFile": "${workspaceFolder}/.env"
         }
     ]
