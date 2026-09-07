@@ -7,7 +7,9 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.projectservice.client.UserLookupClient;
 import com.example.projectservice.dto.ProjectInvitationResponse;
+import com.example.projectservice.dto.UserInfo;
 import com.example.projectservice.entity.Project;
 import com.example.projectservice.entity.ProjectInvitation;
 import com.example.projectservice.exception.ForbiddenException;
@@ -21,13 +23,16 @@ public class InvitationService {
     private final ProjectInvitationRepository invitationRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final ProjectService projectService;
+    private final UserLookupClient userLookupClient;
 
     public InvitationService(ProjectInvitationRepository invitationRepository,
                              ProjectMemberRepository projectMemberRepository,
-                             ProjectService projectService) {
+                             ProjectService projectService,
+                             UserLookupClient userLookupClient) {
         this.invitationRepository = invitationRepository;
         this.projectMemberRepository = projectMemberRepository;
         this.projectService = projectService;
+        this.userLookupClient = userLookupClient;
     }
 
     /**
@@ -176,11 +181,22 @@ public class InvitationService {
     }
 
     private ProjectInvitationResponse toResponse(ProjectInvitation inv) {
+        UserInfo targetUser = userLookupClient.getUser(inv.getTargetUserId());
+        UserInfo initiator = userLookupClient.getUser(inv.getInitiatedBy());
+        String projectName = null;
+        try {
+            projectName = projectService.findProjectOrThrow(inv.getProjectId()).getName();
+        } catch (Exception ignored) {}
         return new ProjectInvitationResponse(
                 inv.getId(),
                 inv.getProjectId(),
+                projectName,
                 inv.getTargetUserId(),
+                targetUser != null ? targetUser.userName() : null,
+                targetUser != null ? targetUser.fullName() : null,
                 inv.getInitiatedBy(),
+                initiator != null ? initiator.userName() : null,
+                initiator != null ? initiator.fullName() : null,
                 inv.getType(),
                 inv.getStatus(),
                 inv.getCreatedAt(),

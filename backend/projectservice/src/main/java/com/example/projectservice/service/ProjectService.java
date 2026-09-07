@@ -7,9 +7,12 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.projectservice.client.UserLookupClient;
 import com.example.projectservice.dto.CreateProjectRequest;
+import com.example.projectservice.dto.MemberResponse;
 import com.example.projectservice.dto.ProjectResponse;
 import com.example.projectservice.dto.UpdateProjectRequest;
+import com.example.projectservice.dto.UserInfo;
 import com.example.projectservice.entity.Project;
 import com.example.projectservice.entity.ProjectMember;
 import com.example.projectservice.entity.ProjectMember.ProjectMemberId;
@@ -23,11 +26,14 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
+    private final UserLookupClient userLookupClient;
 
     public ProjectService(ProjectRepository projectRepository,
-                          ProjectMemberRepository projectMemberRepository) {
+                          ProjectMemberRepository projectMemberRepository,
+                          UserLookupClient userLookupClient) {
         this.projectRepository = projectRepository;
         this.projectMemberRepository = projectMemberRepository;
+        this.userLookupClient = userLookupClient;
     }
 
     @Transactional
@@ -115,10 +121,22 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProjectMember> getMembers(UUID projectId, UUID requesterId) {
+    public List<MemberResponse> getMembers(UUID projectId, UUID requesterId) {
         findProjectOrThrow(projectId);
         requireMember(projectId, requesterId);
-        return projectMemberRepository.findByIdProjectId(projectId);
+        return projectMemberRepository.findByIdProjectId(projectId)
+                .stream()
+                .map(member -> {
+                    UserInfo info = userLookupClient.getUser(member.getId().getUserId());
+                    return new MemberResponse(
+                            member.getId().getUserId(),
+                            info != null ? info.userName() : null,
+                            info != null ? info.fullName() : null,
+                            member.getRole(),
+                            member.getJoinedAt()
+                    );
+                })
+                .toList();
     }
 
     // ---- Package-private helpers used by other services ----
@@ -162,6 +180,7 @@ public class ProjectService {
         long memberCount = projectMemberRepository.countByIdProjectId(project.getId());
         boolean isMember = userId != null &&
                 projectMemberRepository.existsByIdUserIdAndIdProjectId(userId, project.getId());
+        UserInfo creator = userLookupClient.getUser(project.getCreatedBy());
         return new ProjectResponse(
                 project.getId(),
                 project.getName(),
@@ -170,6 +189,8 @@ public class ProjectService {
                 project.getTechStack(),
                 project.getStatus(),
                 project.getCreatedBy(),
+                creator != null ? creator.userName() : null,
+                creator != null ? creator.fullName() : null,
                 project.getCreatedAt(),
                 project.getUpdatedAt(),
                 memberCount,

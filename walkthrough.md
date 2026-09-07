@@ -835,7 +835,7 @@ Response 201 Created:
 ```json
 {
   "id": "inv-uuid-1234",
-  "projectId": "a1b2c3d4-...",
+  "projectId": "a1b2c3d4-...dock",
   "targetUserId": "your-user-uuid",
   "initiatedBy": "your-user-uuid",
   "type": "JOIN_REQUEST",
@@ -1469,3 +1469,298 @@ CREATE TABLE friendships (
 );
 ```
 
+---
+
+---
+
+# Phase 12 - Username & Project Name Enrichment (All Services)
+
+> **Problem solved:** Every backend response that referenced another user or project was previously returning only a raw UUID (e.g. `senderId`, `createdBy`, `assignedTo`). This phase enriches all affected DTOs to include human-readable `userName`, `fullName`, and `projectName` fields alongside the existing IDs — so the frontend never needs to display or resolve UUIDs.
+
+---
+
+## Architecture
+
+Each service that references user IDs now makes an internal HTTP call to `userdetailsservice` (port 8082) using Spring's built-in `RestClient` to resolve a UUID → `userName` + `fullName`. If the user has no profile yet, or the service is temporarily unavailable, the username fields fall back gracefully to `null`.
+
+```
+profileservice / projectservice
+         │
+         │  GET /users/details/{uuid}   (internal, bypasses gateway)
+         ▼
+  userdetailsservice:8082
+         │
+         └─ returns { userId, userName, fullName, ... }
+```
+
+---
+
+## New Files Created
+
+### profileservice
+
+| File | Purpose |
+|---|---|
+| `dto/UserInfo.java` | Minimal record: `userId`, `userName`, `fullName` |
+| `client/UserLookupClient.java` | `RestClient`-based internal caller to `userdetailsservice` |
+
+### projectservice
+
+| File | Purpose |
+|---|---|
+| `dto/UserInfo.java` | Same minimal record |
+| `client/UserLookupClient.java` | Same `RestClient`-based caller |
+| `dto/MemberResponse.java` | Replaces raw `ProjectMember` entity in the `/members` endpoint |
+
+---
+
+## DTOs Modified
+
+### profileservice
+
+#### `FriendRequestResponse`
+```java
+// Before
+UUID senderId, UUID receiverId
+
+// After — new fields added
+UUID senderId,
+String senderUsername,
+String senderFullName,
+UUID receiverId,
+String receiverUsername,
+String receiverFullName,
+```
+
+#### `FriendSummary`
+```java
+// Before
+UUID friendId, Instant since
+
+// After
+UUID friendId,
+String userName,
+String fullName,
+Instant since
+```
+
+### projectservice
+
+#### `ProjectResponse`
+```java
+// New fields added alongside existing createdBy UUID
+UUID createdBy,
+String createdByUserName,
+String createdByFullName,
+```
+
+#### `ProjectInvitationResponse`
+```java
+// New fields added
+UUID projectId,
+String projectName,
+UUID targetUserId,
+String targetUserName,
+String targetUserFullName,
+UUID initiatedBy,
+String initiatedByUserName,
+String initiatedByFullName,
+```
+
+#### `TaskResponse`
+```java
+// New fields added
+UUID projectId,
+String projectName,
+UUID assignedTo,
+String assignedToUserName,
+String assignedToFullName,
+UUID assignedBy,
+String assignedByUserName,
+String assignedByFullName,
+```
+
+#### `MemberResponse` (new DTO — replaces raw `ProjectMember` entity)
+```java
+UUID userId,
+String userName,
+String fullName,
+String role,
+Instant joinedAt
+```
+
+---
+
+## Services Modified
+
+### profileservice — `FriendService`
+- Injected `UserLookupClient`
+- `toResponse(FriendRequest)` resolves sender and receiver UUIDs → populates `senderUsername`, `senderFullName`, `receiverUsername`, `receiverFullName`
+- `getFriends(UUID)` resolves each `friendId` → populates `userName`, `fullName` in `FriendSummary`
+
+### projectservice — `ProjectService`
+- Injected `UserLookupClient`
+- `toResponse(Project, UUID)` resolves `createdBy` UUID → populates `createdByUserName`, `createdByFullName`
+- `getMembers(UUID, UUID)` returns `List<MemberResponse>` (was `List<ProjectMember>`) — each entry includes `userName`, `fullName`, `role`, `joinedAt`
+
+### projectservice — `InvitationService`
+- Injected `UserLookupClient`
+- `toResponse(ProjectInvitation)` resolves `targetUserId` and `initiatedBy` UUIDs, fetches project name via `projectService.findProjectOrThrow()`
+- Populates: `projectName`, `targetUserName`, `targetUserFullName`, `initiatedByUserName`, `initiatedByFullName`
+
+### projectservice — `TaskService`
+- Injected `UserLookupClient`
+- `toResponse(ProjectTask)` resolves `assignedTo` and `assignedBy` UUIDs, fetches project name via `projectService.findProjectOrThrow()`
+- Populates: `projectName`, `assignedToUserName`, `assignedToFullName`, `assignedByUserName`, `assignedByFullName`
+
+---
+
+## Controller Modified
+
+### `ProjectController`
+- `getMembers()` return type changed from `List<ProjectMember>` (raw JPA entity) → `List<MemberResponse>` (enriched DTO)
+
+---
+
+## Configuration Changes
+
+### `profileservice/application.properties`
+```properties
+# Internal service URLs
+userdetailsservice.base-url=http://localhost:8082
+```
+
+### `projectservice/application.properties`
+```properties
+# Internal service URLs
+userdetailsservice.base-url=http://localhost:8082
+```
+
+---
+
+## Enriched Response Examples
+
+### Friend Request (send / accept / reject / list)
+```json
+{
+  "id": "fr-uuid",
+  "senderId": "user-a-uuid",
+  "senderUsername": "alice_dev",
+  "senderFullName": "Alice Dev",
+  "receiverId": "user-b-uuid",
+  "receiverUsername": "bob_builder",
+  "receiverFullName": "Bob Builder",
+  "status": "PENDING",
+  "createdAt": "2026-09-07T21:20:40Z",
+  "resolvedAt": null
+}
+```
+
+### Friends List (`GET /profiles/friends`)
+```json
+[
+  {
+    "friendId": "user-b-uuid",
+    "userName": "bob_builder",
+    "fullName": "Bob Builder",
+    "since": "2026-09-07T21:20:54Z"
+  }
+]
+```
+
+### Project Response (`POST /projects`, `GET /projects`, `GET /projects/my`)
+```json
+{
+  "id": "project-uuid",
+  "name": "My Project",
+  "createdBy": "user-a-uuid",
+  "createdByUserName": "alice_dev",
+  "createdByFullName": "Alice Dev",
+  "memberCount": 2,
+  "isMember": true
+}
+```
+
+### Project Members (`GET /projects/{projectId}/members`)
+```json
+[
+  {
+    "userId": "user-a-uuid",
+    "userName": "alice_dev",
+    "fullName": "Alice Dev",
+    "role": "CREATOR",
+    "joinedAt": "2026-09-07T21:21:28Z"
+  },
+  {
+    "userId": "user-b-uuid",
+    "userName": "bob_builder",
+    "fullName": "Bob Builder",
+    "role": "MEMBER",
+    "joinedAt": "2026-09-07T21:22:09Z"
+  }
+]
+```
+
+### Project Invitation (all invitation endpoints)
+```json
+{
+  "id": "invite-uuid",
+  "projectId": "project-uuid",
+  "projectName": "My Project",
+  "targetUserId": "user-b-uuid",
+  "targetUserName": "bob_builder",
+  "targetUserFullName": "Bob Builder",
+  "initiatedBy": "user-a-uuid",
+  "initiatedByUserName": "alice_dev",
+  "initiatedByFullName": "Alice Dev",
+  "type": "INVITE",
+  "status": "PENDING",
+  "createdAt": "2026-09-07T21:21:48Z",
+  "resolvedAt": null
+}
+```
+
+### Task Response (all task endpoints)
+```json
+{
+  "id": "task-uuid",
+  "projectId": "project-uuid",
+  "projectName": "My Project",
+  "assignedTo": "user-b-uuid",
+  "assignedToUserName": "bob_builder",
+  "assignedToFullName": "Bob Builder",
+  "assignedBy": "user-a-uuid",
+  "assignedByUserName": "alice_dev",
+  "assignedByFullName": "Alice Dev",
+  "title": "Build the dashboard",
+  "progressPercent": 50,
+  "progressNote": "Dashboard skeleton done",
+  "status": "IN_PROGRESS",
+  "createdAt": "2026-09-07T21:22:34Z",
+  "updatedAt": "2026-09-07T21:23:18Z"
+}
+```
+
+---
+
+## Graceful Fallback Behaviour
+
+If a user has never completed their profile setup (`userName` is `null`), or `userdetailsservice` is temporarily unreachable, all username/fullName fields return `null` — no error is thrown. The frontend should handle this:
+
+```js
+// Safe display pattern
+const displayName = member.userName ?? `User (${member.userId.slice(0, 8)}...)`;
+```
+
+---
+
+## Compile Verification
+
+Both services compiled cleanly after all changes:
+
+```
+profileservice  →  ./mvnw compile   exit code: 0  ✅
+projectservice  →  ./mvnw compile   exit code: 0  ✅
+```
+
+> **Note:** After making these changes while services are already running, **restart both `profileservice` and `projectservice`** for the enriched responses to take effect.
