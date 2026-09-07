@@ -620,7 +620,7 @@ The **community service never validates the JWT itself** — it simply reads the
 
 ---
 
-## Updated Architecture (with Project Service)
+## Updated Architecture (with Project Service & Profile Service)
 
 ```
 Frontend / Postman
@@ -635,7 +635,10 @@ Frontend / Postman
        +---> User Details Service :8082  (profile CRUD)
        +---> Community Service :8083     (communities, posts, comments, votes)
        +---> Project Service :8084       (projects, invitations, tasks, docs)
+       +---> Profile Service :8083       (friends system)
 ```
+
+> **Note:** Profile Service registers as `PROFILESERVICE` in Eureka. The gateway routes `/profiles/**` → `lb://PROFILESERVICE`.
 
 ---
 
@@ -1224,3 +1227,245 @@ CREATE TABLE project_docs (
     updated_at     TIMESTAMP NOT NULL
 );
 ```
+
+---
+
+---
+
+# Phase 11 - Friends System (Profile Service)
+
+> All endpoints require: `Authorization: Bearer {{token}}`
+> The gateway injects `X-User-Id` automatically — never send it manually.
+> Base path: `/profiles/friends`
+
+A friend relationship is **mutual and explicit** — User A must send a request, and User B must actively accept it before they appear in each other's friend list.
+
+---
+
+## Request Lifecycle
+
+```
+User A  --[POST /request/{B}]-->  PENDING
+                                    |
+                    User B accepts  |  User B rejects
+                                    |
+                              ACCEPTED          REJECTED
+                                    |
+                     Two Friendship rows inserted:
+                       (A → B) and (B → A)
+```
+
+---
+
+### 11.1 Send a Friend Request
+
+```
+POST http://localhost:8080/profiles/friends/request/{receiverId}
+Authorization: Bearer {{token}}
+```
+
+No request body needed. `{receiverId}` is the UUID of the user you want to add.
+
+**Response `201 Created`:**
+```json
+{
+  "id": "fr-uuid-1234",
+  "senderId": "your-user-uuid",
+  "receiverId": "target-user-uuid",
+  "status": "PENDING",
+  "createdAt": "2026-09-07T13:45:00Z",
+  "resolvedAt": null
+}
+```
+
+> 📌 **Save the `id`** as `{requestId}` — the receiver will need it to accept or reject.
+
+**Error cases:**
+- `400 Bad Request` — you cannot send a request to yourself
+- `409 Conflict` — a request already exists between these users (in either direction)
+- `409 Conflict` — you are already friends
+
+---
+
+### 11.2 Accept a Friend Request
+
+Only the **receiver** of the request can accept it.
+
+```
+PUT http://localhost:8080/profiles/friends/request/{requestId}/accept
+Authorization: Bearer {{token}}
+```
+
+**Response `200 OK`:**
+```json
+{
+  "id": "fr-uuid-1234",
+  "senderId": "user-a-uuid",
+  "receiverId": "your-user-uuid",
+  "status": "ACCEPTED",
+  "createdAt": "2026-09-07T13:45:00Z",
+  "resolvedAt": "2026-09-07T13:50:00Z"
+}
+```
+
+Both users are now in each other's friend list.
+
+**Error cases:**
+- `403 Forbidden` — you are not the receiver of this request
+- `409 Conflict` — request is not in PENDING state (already accepted or rejected)
+- `404 Not Found` — request does not exist
+
+---
+
+### 11.3 Reject a Friend Request
+
+Only the **receiver** of the request can reject it.
+
+```
+PUT http://localhost:8080/profiles/friends/request/{requestId}/reject
+Authorization: Bearer {{token}}
+```
+
+**Response `200 OK`:**
+```json
+{
+  "id": "fr-uuid-1234",
+  "senderId": "user-a-uuid",
+  "receiverId": "your-user-uuid",
+  "status": "REJECTED",
+  "createdAt": "2026-09-07T13:45:00Z",
+  "resolvedAt": "2026-09-07T13:52:00Z"
+}
+```
+
+**Error cases:**
+- `403 Forbidden` — you are not the receiver of this request
+- `409 Conflict` — request is not in PENDING state
+- `404 Not Found` — request does not exist
+
+---
+
+### 11.4 View Incoming Pending Requests (Your Inbox)
+
+Returns all friend requests sent **to you** that are still `PENDING`.
+
+```
+GET http://localhost:8080/profiles/friends/requests/incoming
+Authorization: Bearer {{token}}
+```
+
+**Response `200 OK`:**
+```json
+[
+  {
+    "id": "fr-uuid-1234",
+    "senderId": "user-a-uuid",
+    "receiverId": "your-user-uuid",
+    "status": "PENDING",
+    "createdAt": "2026-09-07T13:45:00Z",
+    "resolvedAt": null
+  }
+]
+```
+
+---
+
+### 11.5 View Sent Pending Requests (Your Outbox)
+
+Returns all friend requests you sent that are still `PENDING`.
+
+```
+GET http://localhost:8080/profiles/friends/requests/sent
+Authorization: Bearer {{token}}
+```
+
+**Response `200 OK`** — same shape as incoming list.
+
+---
+
+### 11.6 List My Friends
+
+Returns all users who have accepted a friend request with you.
+
+```
+GET http://localhost:8080/profiles/friends
+Authorization: Bearer {{token}}
+```
+
+**Response `200 OK`:**
+```json
+[
+  {
+    "friendId": "user-b-uuid",
+    "since": "2026-09-07T13:50:00Z"
+  },
+  {
+    "friendId": "user-c-uuid",
+    "since": "2026-09-07T14:05:00Z"
+  }
+]
+```
+
+> To get full profile details for each friend, call `GET /users/details/{friendId}` (User Details Service) for each `friendId`.
+
+---
+
+---
+
+## Full End-to-End Test Sequence (Friends System)
+
+Use 3 separate user accounts: User A, User B, User C.
+
+| # | Method | URL | Actor | Notes |
+|---|---|---|---|---|
+| 1 | `POST` | `/auth/signup` | User A | Register → save token A |
+| 2 | `POST` | `/auth/signup` | User B | Register → save token B |
+| 3 | `POST` | `/auth/signup` | User C | Register → save token C |
+| 4 | `POST` | `/profiles/friends/request/{userBId}` | A | A sends request to B → save `requestId` |
+| 5 | `GET` | `/profiles/friends/requests/sent` | A | Verify request appears in A's outbox |
+| 6 | `GET` | `/profiles/friends/requests/incoming` | B | Verify request appears in B's inbox |
+| 7 | `PUT` | `/profiles/friends/request/{requestId}/accept` | B | B accepts → status: ACCEPTED |
+| 8 | `GET` | `/profiles/friends` | A | A's friend list contains B |
+| 9 | `GET` | `/profiles/friends` | B | B's friend list contains A |
+| 10 | `POST` | `/profiles/friends/request/{userBId}` | A | Duplicate request → expect `409` |
+| 11 | `POST` | `/profiles/friends/request/{userCId}` | A | A sends request to C → save `requestId2` |
+| 12 | `PUT` | `/profiles/friends/request/{requestId2}/reject` | C | C rejects → status: REJECTED |
+| 13 | `GET` | `/profiles/friends` | A | C does NOT appear in A's friends |
+| 14 | `PUT` | `/profiles/friends/request/{requestId}/accept` | A | A tries to accept own sent request → `403` |
+| 15 | `GET` | `/users/details/{friendId}` | A | Enrich friend list with full profile data |
+
+---
+
+## Profile Service — Error Reference
+
+| HTTP Status | Meaning |
+|---|---|
+| `400 Bad Request` | Cannot send a request to yourself |
+| `403 Forbidden` | Only the receiver can accept or reject a request |
+| `404 Not Found` | Friend request ID does not exist |
+| `409 Conflict` | Duplicate request, already friends, or request already resolved |
+
+---
+
+## Profile Service — Database Schema (auto-generated by Hibernate)
+
+```sql
+CREATE TABLE friend_requests (
+    id          UUID PRIMARY KEY,
+    sender_id   UUID NOT NULL,
+    receiver_id UUID NOT NULL,
+    status      VARCHAR NOT NULL,        -- PENDING | ACCEPTED | REJECTED
+    created_at  TIMESTAMP NOT NULL,
+    resolved_at TIMESTAMP,
+    UNIQUE (sender_id, receiver_id)      -- prevents duplicate requests
+);
+
+CREATE TABLE friendships (
+    id        UUID PRIMARY KEY,
+    user_id   UUID NOT NULL,
+    friend_id UUID NOT NULL,
+    since     TIMESTAMP NOT NULL,
+    UNIQUE (user_id, friend_id)          -- two symmetric rows per accepted pair
+);
+```
+
