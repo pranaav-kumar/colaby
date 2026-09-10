@@ -47,7 +47,7 @@ function Login() {
       setEmail('');
       setPassword('');
       setFieldErrors({});
-      navigate(from, { replace: true });
+      navigate('/explore', { replace: true });
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {

@@ -11,6 +11,8 @@ export default function Explore() {
   const [searchQuery, setSearchQuery] = useState('');
   const [onlyCollaborators, setOnlyCollaborators] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState('');
+  // Track which card's User ID was most recently copied (by userId)
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     async function loadAllProfiles() {
@@ -28,6 +30,14 @@ export default function Explore() {
 
     loadAllProfiles();
   }, []);
+
+  const handleCopyId = (userId) => {
+    if (!userId) return;
+    navigator.clipboard.writeText(userId).then(() => {
+      setCopiedId(userId);
+      setTimeout(() => setCopiedId((prev) => (prev === userId ? null : prev)), 2000);
+    }).catch(() => {});
+  };
 
   // Collect all unique skills for quick filtering
   const allSkills = useMemo(() => {
@@ -211,6 +221,24 @@ export default function Explore() {
                       </h2>
                       {profile.userName && (
                         <span className="developer-username">@{profile.userName}</span>
+                      )}
+                      {/* User ID row */}
+                      {profile.userId && (
+                        <div className="developer-userid-row">
+                          <span className="developer-userid-value" title={profile.userId}>
+                            {`${profile.userId.slice(0, 8)}…${profile.userId.slice(-4)}`}
+                          </span>
+                          <button
+                            type="button"
+                            className={`copy-id-btn copy-id-btn-sm${copiedId === profile.userId ? ' copied' : ''}`}
+                            onClick={() => handleCopyId(profile.userId)}
+                            aria-label={`Copy User ID for ${profile.fullName || profile.userName || 'this developer'}`}
+                            title="Copy User ID"
+                            id={`explore-copy-${profile.userId}`}
+                          >
+                            {copiedId === profile.userId ? 'Copied!' : 'Copy ID'}
+                          </button>
+                        </div>
                       )}
                     </div>
 

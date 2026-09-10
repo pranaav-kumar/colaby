@@ -43,13 +43,13 @@ function Signup() {
     try {
       await signup(email, password);
 
-      setSuccess('Account created successfully! Setting up your profile…');
+      setSuccess('Account created! Redirecting…');
       setEmail('');
       setPassword('');
       setFieldErrors({});
 
-      // Redirect to onboarding to fill in user details
-      setTimeout(() => navigate('/onboarding', { replace: true }), 1000);
+      // Redirect to explore
+      setTimeout(() => navigate('/explore', { replace: true }), 1000);
     } catch (err) {
       // Provide better guidance for common backend-side issues
       const status = err?.response?.status;

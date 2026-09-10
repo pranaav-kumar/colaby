@@ -10,6 +10,9 @@ import UserProfile from './pages/UserProfile';
 import Community from './pages/Community';
 import CommunityDetail from './pages/CommunityDetail';
 import PostDetail from './pages/PostDetail';
+import Projects from './pages/Projects';
+import ProjectDetail from './pages/ProjectDetail';
+import MyFriends from './pages/MyFriends';
 
 function App() {
   return (
@@ -30,6 +33,9 @@ function App() {
             <Route path="/community" element={<Community />} />
             <Route path="/community/:communityId" element={<CommunityDetail />} />
             <Route path="/community/:communityId/posts/:postId" element={<PostDetail />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/:projectId" element={<ProjectDetail />} />
+            <Route path="/friends" element={<MyFriends />} />
           </Route>
 
           {/* Fallback */}
