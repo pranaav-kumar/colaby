@@ -1,5 +1,6 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar() {
   const { logout, user } = useAuth();
@@ -39,12 +40,28 @@ export default function Navbar() {
               Community
             </NavLink>
             <NavLink
+              to="/projects"
+              className={({ isActive }) =>
+                `nav-link${isActive ? ' active' : ''}`
+              }
+            >
+              Projects
+            </NavLink>
+            <NavLink
               to="/profile"
               className={({ isActive }) =>
                 `nav-link${isActive ? ' active' : ''}`
               }
             >
               My Profile
+            </NavLink>
+            <NavLink
+              to="/friends"
+              className={({ isActive }) =>
+                `nav-link${isActive ? ' active' : ''}`
+              }
+            >
+              My Friends
             </NavLink>
           </nav>
         </div>
@@ -56,6 +73,7 @@ export default function Navbar() {
               {shortUserId}
             </span>
           )}
+          <NotificationBell />
           <button
             type="button"
             className="btn-secondary btn-sm"

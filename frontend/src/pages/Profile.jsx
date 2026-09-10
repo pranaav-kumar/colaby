@@ -42,6 +42,17 @@ export default function Profile() {
   // Skill input helper
   const [skillInput, setSkillInput] = useState('');
 
+  // Copy User ID state
+  const [copiedUserId, setCopiedUserId] = useState(false);
+
+  const handleCopyUserId = () => {
+    if (!meta.userId) return;
+    navigator.clipboard.writeText(meta.userId).then(() => {
+      setCopiedUserId(true);
+      setTimeout(() => setCopiedUserId(false), 2000);
+    }).catch(() => {});
+  };
+
   useEffect(() => {
     async function loadProfile() {
       if (!user?.userId) return;
@@ -239,8 +250,24 @@ export default function Profile() {
           <div className="profile-metadata-section">
             <div className="metadata-row">
               <span className="metadata-label">User ID</span>
-              <span className="metadata-value" title={meta.userId}>
-                {meta.userId || '—'}
+              <span className="metadata-value userid-value" title={meta.userId}>
+                <span className="userid-truncated">
+                  {meta.userId
+                    ? `${meta.userId.slice(0, 8)}…${meta.userId.slice(-4)}`
+                    : '—'}
+                </span>
+                {meta.userId && (
+                  <button
+                    type="button"
+                    className={`copy-id-btn${copiedUserId ? ' copied' : ''}`}
+                    onClick={handleCopyUserId}
+                    aria-label="Copy User ID"
+                    title="Copy full User ID"
+                    id="profile-copy-userid-btn"
+                  >
+                    {copiedUserId ? 'Copied!' : 'Copy'}
+                  </button>
+                )}
               </span>
             </div>
             <div className="metadata-row">
@@ -562,8 +589,24 @@ export default function Profile() {
           <div className="profile-metadata-section">
             <div className="metadata-row">
               <span className="metadata-label">User ID</span>
-              <span className="metadata-value" title={meta.userId}>
-                {meta.userId || '—'}
+              <span className="metadata-value userid-value" title={meta.userId}>
+                <span className="userid-truncated">
+                  {meta.userId
+                    ? `${meta.userId.slice(0, 8)}…${meta.userId.slice(-4)}`
+                    : '—'}
+                </span>
+                {meta.userId && (
+                  <button
+                    type="button"
+                    className={`copy-id-btn${copiedUserId ? ' copied' : ''}`}
+                    onClick={handleCopyUserId}
+                    aria-label="Copy User ID"
+                    title="Copy full User ID"
+                    id="profile-edit-copy-userid-btn"
+                  >
+                    {copiedUserId ? 'Copied!' : 'Copy'}
+                  </button>
+                )}
               </span>
             </div>
             <div className="metadata-row">
