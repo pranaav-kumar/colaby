@@ -557,3 +557,6 @@ When a downstream service is unavailable, the gateway returns `503 Service Unava
 
 7. POST /auth/logout              → Revoke refresh token (no auth needed)
 ```
+
+
+// hi test commit
