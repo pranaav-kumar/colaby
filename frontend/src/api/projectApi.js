@@ -191,6 +191,18 @@ export function updateTaskProgress(projectId, taskId, data) {
 }
 
 /**
+ * PATCH /projects/{projectId}/tasks/{taskId}/status
+ * Assignee or creator moves a task to a different Kanban column.
+ * @param {string} projectId
+ * @param {string} taskId
+ * @param {string} status - 'PENDING' | 'ONGOING' | 'DONE'
+ * @returns {Promise<TaskResponse>}
+ */
+export function updateTaskStatus(projectId, taskId, status) {
+  return api.patch(`/projects/${projectId}/tasks/${taskId}/status`, { status });
+}
+
+/**
  * DELETE /projects/{projectId}/tasks/{taskId}
  * Creator removes a task from the project.
  * @param {string} projectId
@@ -222,4 +234,39 @@ export function upsertDoc(projectId, data) {
  */
 export function getDoc(projectId) {
   return api.get(`/projects/${projectId}/docs`);
+}
+
+// ─── Calendar Events ──────────────────────────────────────
+
+/**
+ * POST /projects/{projectId}/events
+ * Creator schedules a new event.
+ * @param {string} projectId
+ * @param {{ title, description?, startTime, endTime, visibility, participantIds? }} data
+ * @returns {Promise<EventResponse>} 201
+ */
+export function createEvent(projectId, data) {
+  return api.post(`/projects/${projectId}/events`, data);
+}
+
+/**
+ * GET /projects/{projectId}/events
+ * Returns events visible to the authenticated user.
+ * Creator sees all; members see ALL-visibility + SPECIFIC events they are in.
+ * @param {string} projectId
+ * @returns {Promise<EventResponse[]>}
+ */
+export function getEvents(projectId) {
+  return api.get(`/projects/${projectId}/events`);
+}
+
+/**
+ * DELETE /projects/{projectId}/events/{eventId}
+ * Creator deletes an event.
+ * @param {string} projectId
+ * @param {string} eventId
+ * @returns {Promise<void>} 204
+ */
+export function deleteEvent(projectId, eventId) {
+  return api.delete(`/projects/${projectId}/events/${eventId}`);
 }
