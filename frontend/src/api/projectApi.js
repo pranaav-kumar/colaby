@@ -270,3 +270,37 @@ export function getEvents(projectId) {
 export function deleteEvent(projectId, eventId) {
   return api.delete(`/projects/${projectId}/events/${eventId}`);
 }
+
+// ─── Notes & Folders ──────────────────────────────────────────
+
+export function createFolder(projectId, data) {
+  return api.post(`/projects/${projectId}/notes/folders`, data);
+}
+
+export function getFolders(projectId) {
+  return api.get(`/projects/${projectId}/notes/folders`);
+}
+
+export function deleteFolder(projectId, folderId) {
+  return api.delete(`/projects/${projectId}/notes/folders/${folderId}`);
+}
+
+export function createNote(projectId, data) {
+  return api.post(`/projects/${projectId}/notes`, data);
+}
+
+export function getNotes(projectId) {
+  return api.get(`/projects/${projectId}/notes`);
+}
+
+export function getNote(projectId, noteId) {
+  return api.get(`/projects/${projectId}/notes/${noteId}`);
+}
+
+export function updateNote(projectId, noteId, data) {
+  return api.put(`/projects/${projectId}/notes/${noteId}`, data);
+}
+
+export function deleteNote(projectId, noteId) {
+  return api.delete(`/projects/${projectId}/notes/${noteId}`);
+}
