@@ -2908,7 +2908,788 @@ body {
   box-shadow: 0 2px 6px rgba(99, 102, 241, 0.4);
 }
 
+/* ─── Kanban Board ──────────────────────────────────────── */
+
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 8px;
+  align-items: start;
+}
+
+.kanban-column {
+  background: rgba(15, 15, 30, 0.5);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius);
+  padding: 0 0 12px 0;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  min-height: 200px;
+}
+
+.kanban-col-drop-over {
+  border-color: var(--accent-primary) !important;
+  background: rgba(99, 102, 241, 0.06) !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.18);
+}
+
+/* Column accent left-borders */
+.kanban-col-pending  { border-top: 3px solid hsl(220, 14%, 56%); }
+.kanban-col-ongoing  { border-top: 3px solid hsl(250, 80%, 65%); }
+.kanban-col-done     { border-top: 3px solid hsl(155, 60%, 48%); }
+
+.kanban-column-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--bg-card-border);
+  margin-bottom: 10px;
+}
+
+.kanban-col-icon {
+  font-size: 1rem;
+}
+
+.kanban-col-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.kanban-col-count {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.kanban-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 10px;
+}
+
+.kanban-empty-col {
+  text-align: center;
+  padding: 28px 12px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+  border: 1.5px dashed var(--bg-card-border);
+  border-radius: var(--radius-sm);
+}
+
+/* Kanban cards */
+.kanban-card {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  cursor: grab;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s, opacity 0.15s;
+  position: relative;
+  user-select: none;
+}
+
+.kanban-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.kanban-card:active {
+  cursor: grabbing;
+}
+
+.kanban-card-moving {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Subtle left accent per column */
+.kanban-card-pending { border-left: 3px solid hsl(220, 14%, 56%); }
+.kanban-card-ongoing { border-left: 3px solid hsl(250, 80%, 65%); }
+.kanban-card-done    {
+  border-left: 3px solid hsl(155, 60%, 48%);
+  opacity: 0.85;
+}
+
+.kanban-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.kanban-card-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.35;
+  flex: 1;
+}
+
+.kanban-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.kanban-delete-btn:hover {
+  color: var(--error, #f87171);
+}
+
+.kanban-card-assignee {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.kanban-card-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Progress bar on kanban cards */
+.kanban-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.kanban-progress-bar {
+  flex: 1;
+  height: 5px;
+  background: rgba(100, 116, 139, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.kanban-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  transition: width 0.4s ease;
+}
+
+.kanban-card-done .kanban-progress-fill {
+  background: linear-gradient(90deg, hsl(155, 60%, 45%), hsl(170, 60%, 42%));
+}
+
+.kanban-progress-pct {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  min-width: 32px;
+  text-align: right;
+}
+
+.kanban-progress-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* "Update Progress" button on card */
+.kanban-edit-progress-btn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 6px 10px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-sm);
+  color: var(--accent-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  text-align: center;
+}
+
+.kanban-edit-progress-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: var(--accent-primary);
+}
+
+/* Progress editor inline on card */
+.kanban-progress-editor {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--bg-card-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kanban-editor-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.kanban-note-field {
+  font-size: 0.8rem !important;
+  padding: 8px 10px !important;
+  resize: none;
+}
+
+.kanban-editor-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Moving overlay */
+.kanban-moving-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99, 102, 241, 0.12);
+  border-radius: inherit;
+  font-size: 0.8rem;
+  color: var(--accent-primary);
+  font-weight: 600;
+  backdrop-filter: blur(2px);
+}
+/* ─── Calendar ──────────────────────────────────────────── */
+
+.cal-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 16px;
+  align-items: start;
+}
+
+.cal-main {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* Month header */
+.cal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--bg-card-border);
+}
+
+.cal-month-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex: 1;
+  text-align: center;
+  margin: 0;
+}
+
+.cal-nav-btn {
+  background: none;
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.cal-nav-btn:hover {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: var(--accent-primary);
+}
+
+.cal-today-btn {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: var(--radius-sm);
+  color: var(--accent-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-left: auto;
+}
+
+.cal-today-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+}
+
+/* Day grid */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.cal-weekday-row {
+  border-bottom: 1px solid var(--bg-card-border);
+}
+
+.cal-weekday {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 10px 0;
+}
+
+/* Day cell */
+.cal-day {
+  background: none;
+  border: none;
+  border-top: 1px solid var(--bg-card-border);
+  border-right: 1px solid rgba(255, 255, 255, 0.03);
+  padding: 8px 6px;
+  min-height: 72px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.12s;
+  position: relative;
+}
+
+.cal-day:nth-child(7n) {
+  border-right: none;
+}
+
+.cal-day:hover {
+  background: rgba(99, 102, 241, 0.04);
+}
+
+.cal-day-other {
+  opacity: 0.3;
+}
+
+.cal-day-today .cal-day-num {
+  background: var(--accent-primary);
+  color: #fff;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.cal-day-selected {
+  background: rgba(99, 102, 241, 0.08) !important;
+  box-shadow: inset 0 0 0 2px var(--accent-primary);
+}
+
+.cal-day-num {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* Event dots on day cells */
+.cal-day-dots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.cal-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+.cal-dot-specific {
+  background: hsl(35, 85%, 55%);
+}
+
+.cal-dot-more {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Side panel */
+.cal-side-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius);
+  padding: 20px;
+  min-height: 300px;
+  transition: opacity 0.2s;
+}
+
+.cal-side-panel:not(.cal-side-open) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cal-side-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 14px 0;
+}
+
+.cal-side-empty {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-style: italic;
+  text-align: center;
+}
+
+/* Event cards in side panel */
+.cal-event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cal-event-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: rgba(99, 102, 241, 0.04);
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  border-left: 3px solid var(--accent-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  text-align: left;
+  width: 100%;
+}
+
+.cal-event-card:hover {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.cal-event-card-specific {
+  border-left-color: hsl(35, 85%, 55%);
+  background: rgba(220, 160, 50, 0.04);
+  border-color: rgba(220, 160, 50, 0.12);
+}
+
+.cal-event-card-specific:hover {
+  background: rgba(220, 160, 50, 0.08);
+  border-color: rgba(220, 160, 50, 0.3);
+}
+
+.cal-event-card-time {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.cal-event-card-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Visibility badge */
+.cal-vis-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.03em;
+}
+
+.cal-vis-all {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent-primary);
+}
+
+.cal-vis-specific {
+  background: rgba(220, 160, 50, 0.12);
+  color: hsl(35, 85%, 55%);
+}
+
+/* Event detail view */
+.cal-event-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cal-back-btn {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0;
+  align-self: flex-start;
+  transition: opacity 0.15s;
+}
+
+.cal-back-btn:hover { opacity: 0.7; }
+
+.cal-detail-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.cal-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cal-detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.cal-detail-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 72px;
+  flex-shrink: 0;
+}
+
+.cal-detail-participants {
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cal-participant-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cal-participant-chip {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--accent-primary);
+}
+
+.cal-detail-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  padding-top: 4px;
+  border-top: 1px solid var(--bg-card-border);
+  margin: 0;
+}
+
+.cal-delete-btn {
+  margin-top: 8px;
+  align-self: flex-start;
+}
+
+/* Event creation modal */
+.event-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn 0.15s ease;
+}
+
+.event-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 520px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+.event-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--bg-card-border);
+}
+
+.event-modal-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.event-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 0 2px;
+  transition: color 0.15s;
+}
+
+.event-modal-close:hover {
+  color: var(--text-primary);
+}
+
+.event-modal-form {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.evt-datetime-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Visibility toggle */
+.evt-vis-toggle {
+  display: flex;
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.evt-vis-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.evt-vis-btn:first-child {
+  border-right: 1px solid var(--bg-card-border);
+}
+
+.evt-vis-active {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--accent-primary);
+}
+
+/* Participant picker grid */
+.evt-participant-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.evt-participant-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.evt-participant-item:hover {
+  background: rgba(99, 102, 241, 0.04);
+}
+
+.evt-participant-checked {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.2);
+  color: var(--text-primary);
+}
+
+.evt-participant-item input[type="checkbox"] {
+  accent-color: var(--accent-primary);
+}
+
+/* Calendar responsive */
+@media (max-width: 800px) {
+  .cal-layout {
+    grid-template-columns: 1fr;
+  }
+  .cal-side-panel {
+    min-height: auto;
+  }
+  .evt-datetime-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 540px) {
+  .cal-day {
+    min-height: 52px;
+    padding: 4px 2px;
+  }
+  .cal-day-num {
+    font-size: 0.72rem;
+  }
+  .cal-header {
+    padding: 12px 14px;
+  }
+  .cal-month-title {
+    font-size: 0.92rem;
+  }
+}
+
 /* ─── Members ───────────────────────────────────────────── */
+
 
 .members-list {
   display: flex;
@@ -3121,6 +3902,11 @@ body {
 
   .task-actions {
     align-self: flex-end;
+  }
+
+  /* Kanban responsive: 2 cols on tablet */
+  .kanban-board {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .invitation-card {
@@ -3732,51 +4518,323 @@ body {
   white-space: nowrap;
 }
 
-/* ========================================================= */
-/* ===== Project View Toggle (Dashboard / Workspace) ======= */
-/* ========================================================= */
 
-.project-view-toggle-wrap {
+/* ========================================================= */
+/* ===== Project Shell Layout (Edge Sidebar + Topbar) ===== */
+
+.project-page-shell {
   display: flex;
+  flex-direction: row;
+  width: 100%;
+  min-height: calc(100dvh - 61px);
+  position: relative;
+}
+
+/* LEFT SIDEBAR — Attached to the very left edge, top to bottom */
+.project-sidebar {
+  width: 54px;
+  min-width: 54px;
+  background: rgba(13, 19, 34, 0.98);
+  border-right: 1px solid rgba(99, 102, 241, 0.16);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  position: sticky;
+  top: 61px;
+  height: calc(100dvh - 61px);
+  z-index: 40;
+  flex-shrink: 0;
+}
+
+/* Dashboard / Workspace switch at top of sidebar */
+.project-sidebar-views {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 10px 0;
+  width: 100%;
+}
+
+.project-sidebar-view-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
   justify-content: center;
-  margin: 20px 0 4px;
-}
-
-.project-view-toggle {
-  display: inline-flex;
-  background: var(--bg-card);
-  border: 1px solid var(--bg-card-border);
-  border-radius: 999px;
-  padding: 4px;
-  gap: 4px;
-}
-
-.project-view-btn {
-  padding: 8px 22px;
-  border-radius: 999px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  font-family: var(--font-family);
-  cursor: pointer;
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s, border-color 0.14s, box-shadow 0.14s;
+  flex-shrink: 0;
+}
+
+.project-sidebar-view-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.project-sidebar-view-btn.active {
+  background: var(--accent-primary);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.5);
+}
+
+/* Thin divider line in sidebar */
+.project-sidebar-divider {
+  width: 30px;
+  height: 1px;
+  background: rgba(99, 102, 241, 0.18);
+  margin: 4px 0 10px 0;
+  flex-shrink: 0;
+}
+
+/* Section nav icons in sidebar */
+.project-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.project-sidebar-nav-item {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.project-sidebar-nav-item:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.project-sidebar-nav-item.active {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-primary);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* Active indicator on left edge of button */
+.project-sidebar-nav-item.active::after {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 25%;
+  bottom: 25%;
+  width: 3px;
+  background: var(--accent-primary);
+  border-radius: 0 2px 2px 0;
+}
+
+/* Small dot indicator */
+.sidebar-icon-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  border: 1px solid var(--bg-card);
+}
+
+.sidebar-icon-dot-alert {
+  background: hsl(15, 85%, 58%);
+}
+
+/* MAIN AREA: Topbar + Content */
+.project-main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg-primary);
+}
+
+/* WHITE HIGHLIGHTED TOPBAR */
+.project-topbar {
+  height: 60px;
+  min-height: 60px;
+  background: rgba(13, 19, 34, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  position: sticky;
+  top: 61px;
+  z-index: 30;
+  gap: 16px;
+}
+
+.project-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.project-topbar-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--text-secondary);
-  transition: all 0.18s ease;
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 5px 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(99, 102, 241, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  transition: all 0.15s ease;
   white-space: nowrap;
 }
 
-.project-view-btn:hover:not(.active) {
+.project-topbar-back:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(99, 102, 241, 0.32);
 }
 
-.project-view-btn.active {
-  background: var(--accent-primary);
-  color: #fff;
-  box-shadow: 0 2px 12px rgba(99, 102, 241, 0.4);
+.project-topbar-sep {
+  width: 1px;
+  height: 20px;
+  background: rgba(99, 102, 241, 0.18);
+  flex-shrink: 0;
 }
 
-/* ========================================================= */
+.project-topbar-name {
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+  letter-spacing: -0.01em;
+}
+
+.project-topbar-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: 4px;
+}
+
+.project-topbar-stat {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.project-topbar-link {
+  color: var(--accent-primary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.project-topbar-link:hover {
+  color: var(--accent-primary-hover);
+  text-decoration: underline;
+}
+
+.project-topbar-date {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.project-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.project-member-badge {
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent-primary);
+  border: 1px solid rgba(99, 102, 241, 0.28);
+}
+
+.project-body-content {
+  flex: 1;
+  padding: 24px 32px 60px;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* Responsive: stack on small screens */
+@media (max-width: 768px) {
+  .project-page-shell {
+    flex-direction: column;
+  }
+  .project-sidebar {
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.16);
+    position: sticky;
+    top: 61px;
+    padding: 6px 12px;
+    gap: 8px;
+  }
+  .project-sidebar-views {
+    flex-direction: row;
+    padding: 0 10px 0 0;
+    border-right: 1px solid rgba(99, 102, 241, 0.18);
+    width: auto;
+  }
+  .project-sidebar-divider {
+    width: 1px;
+    height: 24px;
+    margin: 0 4px;
+  }
+  .project-sidebar-nav {
+    flex-direction: row;
+    width: auto;
+  }
+  .project-sidebar-nav-item.active::after {
+    display: none;
+  }
+  .project-topbar {
+    position: static;
+    padding: 12px 16px;
+    height: auto;
+    flex-wrap: wrap;
+  }
+  .project-body-content {
+    padding: 16px;
+  }
+}
+
 /* ===== Project Dashboard Placeholder ==================== */
 /* ========================================================= */
 
@@ -3831,3 +4889,9 @@ body {
   font-family: monospace;
 }
 
+/* ─── Kanban: single column on very small screens ────── */
+@media (max-width: 540px) {
+  .kanban-board {
+    grid-template-columns: 1fr;
+  }
+}

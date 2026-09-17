@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { extractErrorMessage } from '../api/axios';
+import { getProfileById } from '../api/usersApi';
+import { parseJwt } from '../utils/jwt';
 
 function Signup() {
   const navigate = useNavigate();
@@ -41,15 +43,39 @@ function Signup() {
     setLoading(true);
 
     try {
-      await signup(email, password);
+      const signupResult = await signup(email, password);
 
       setSuccess('Account created! Redirecting…');
       setEmail('');
       setPassword('');
       setFieldErrors({});
 
-      // Redirect to explore
-      setTimeout(() => navigate('/explore', { replace: true }), 1000);
+      // Check if the user has completed onboarding (has a userName).
+      // New accounts never have one, so we redirect to /onboarding.
+      // We use a short delay to let the success message show briefly.
+      setTimeout(async () => {
+        try {
+          // user state may not be set yet — parse userId from the returned token
+          const { accessToken } = signupResult;
+          const payload = parseJwt(accessToken);
+          const userId = payload?.sub;
+
+          let needsOnboarding = true;
+          if (userId) {
+            try {
+              const profileRes = await getProfileById(userId);
+              needsOnboarding = !profileRes.data?.userName;
+            } catch {
+              // Profile doesn't exist yet for new users — definitely needs onboarding
+              needsOnboarding = true;
+            }
+          }
+
+          navigate(needsOnboarding ? '/onboarding' : '/explore', { replace: true });
+        } catch {
+          navigate('/onboarding', { replace: true });
+        }
+      }, 800);
     } catch (err) {
       // Provide better guidance for common backend-side issues
       const status = err?.response?.status;

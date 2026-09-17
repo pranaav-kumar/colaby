@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.projectservice.dto.AssignTaskRequest;
 import com.example.projectservice.dto.TaskResponse;
 import com.example.projectservice.dto.UpdateTaskProgressRequest;
+import com.example.projectservice.dto.UpdateTaskStatusRequest;
 import com.example.projectservice.service.TaskService;
 
 import jakarta.validation.Valid;
@@ -67,6 +68,16 @@ public class TaskController {
             @PathVariable UUID taskId,
             @Valid @RequestBody UpdateTaskProgressRequest request) {
         return taskService.updateProgress(projectId, taskId, UUID.fromString(userIdHeader), request);
+    }
+
+    /** Assignee or creator moves a task to a different Kanban column */
+    @PatchMapping("/{taskId}/status")
+    public TaskResponse updateStatus(
+            @RequestHeader("X-User-Id") String userIdHeader,
+            @PathVariable UUID projectId,
+            @PathVariable UUID taskId,
+            @Valid @RequestBody UpdateTaskStatusRequest request) {
+        return taskService.updateStatus(projectId, taskId, UUID.fromString(userIdHeader), request);
     }
 
     /** Creator removes a task */

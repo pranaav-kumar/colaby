@@ -11,6 +11,7 @@ import com.example.projectservice.client.UserLookupClient;
 import com.example.projectservice.dto.AssignTaskRequest;
 import com.example.projectservice.dto.TaskResponse;
 import com.example.projectservice.dto.UpdateTaskProgressRequest;
+import com.example.projectservice.dto.UpdateTaskStatusRequest;
 import com.example.projectservice.dto.UserInfo;
 import com.example.projectservice.entity.Project;
 import com.example.projectservice.entity.ProjectTask;
@@ -53,7 +54,7 @@ public class TaskService {
         task.setDescription(request.description());
         task.setProgressPercent(0);
         task.setProgressNote(null);
-        task.setStatus("TODO");
+        task.setStatus("PENDING");
         task.setCreatedAt(now);
         task.setUpdatedAt(now);
 
@@ -112,6 +113,41 @@ public class TaskService {
     }
 
     /**
+     * Assignee OR creator moves a task to a different Kanban column.
+     * Moving to DONE sets progressPercent to 100.
+     * Moving to PENDING resets progressPercent to 0.
+     */
+    @Transactional
+    public TaskResponse updateStatus(UUID projectId, UUID taskId, UUID userId,
+                                     UpdateTaskStatusRequest request) {
+        Project project = projectService.findProjectOrThrow(projectId);
+        ProjectTask task = findTaskOrThrow(taskId);
+
+        if (!task.getProjectId().equals(projectId)) {
+            throw new ResourceNotFoundException("Task not found in this project");
+        }
+
+        boolean isAssignee = task.getAssignedTo().equals(userId);
+        boolean isCreator  = project.getCreatedBy().equals(userId);
+        if (!isAssignee && !isCreator) {
+            throw new ForbiddenException("Only the task assignee or the project creator can change task status");
+        }
+
+        String newStatus = request.status();
+        task.setStatus(newStatus);
+
+        // Auto-adjust progress when moving to boundary columns
+        if ("DONE".equals(newStatus)) {
+            task.setProgressPercent(100);
+        } else if ("PENDING".equals(newStatus)) {
+            task.setProgressPercent(0);
+        }
+
+        task.setUpdatedAt(Instant.now());
+        return toResponse(taskRepository.save(task));
+    }
+
+    /**
      * Creator removes a task from the project.
      */
     @Transactional
@@ -134,9 +170,9 @@ public class TaskService {
     }
 
     private String deriveStatus(int progressPercent) {
-        if (progressPercent == 0) return "TODO";
+        if (progressPercent == 0) return "PENDING";
         if (progressPercent == 100) return "DONE";
-        return "IN_PROGRESS";
+        return "ONGOING";
     }
 
     private TaskResponse toResponse(ProjectTask task) {
