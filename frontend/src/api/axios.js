@@ -9,6 +9,26 @@ const api = axios.create({
   },
 });
 
+// Direct connection to collaboration-service (bypasses API Gateway timeout for long-running ops)
+const collabDirectURL = import.meta.env.VITE_COLLAB_DIRECT_URL || 'http://localhost:8090';
+export const collabDirect = axios.create({
+  baseURL: collabDirectURL,
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 35000
+});
+
+// collabDirect also needs Bearer token so collaboration-service can identify the user
+collabDirect.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 let isRefreshing = false;
 let failedQueue = [];
 

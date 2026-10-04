@@ -2,73 +2,56 @@
     "configurations": [
         {
             "type": "java",
-            "name": "Spring Boot-AuthserviceApplication<authservice>",
+            "name": "Auth Service",
             "request": "launch",
-            "cwd": "${workspaceFolder}",
             "mainClass": "com.example.authservice.AuthserviceApplication",
             "projectName": "authservice",
-            "args": "",
-            "envFile": "${workspaceFolder}/.env",
-            "vmArgs": " -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=57669 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dspring.jmx.enabled=true -Djava.rmi.server.hostname=localhost -Dspring.application.admin.enabled=true -Dspring.boot.project.name=authservice"
+            "envFile": "${workspaceFolder}/.env"
         },
         {
             "type": "java",
-            "name": "Spring Boot-ApigatewayApplication<apigateway>",
+            "name": "API Gateway",
             "request": "launch",
-            "cwd": "${workspaceFolder}",
             "mainClass": "com.example.apigateway.ApigatewayApplication",
             "projectName": "apigateway",
-            "args": "",
-            "envFile": "${workspaceFolder}/.env",
-            "vmArgs": " -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=57666 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dspring.jmx.enabled=true -Djava.rmi.server.hostname=localhost -Dspring.application.admin.enabled=true -Dspring.boot.project.name=apigateway"
+            "envFile": "${workspaceFolder}/.env"
         },
         {
             "type": "java",
-            "name": "Spring Boot-DiscoveryserviceApplication<discoveryservice>",
+            "name": "Discovery Service",
             "request": "launch",
-            "cwd": "${workspaceFolder}",
             "mainClass": "com.example.discoveryservice.DiscoveryserviceApplication",
             "projectName": "discoveryservice",
-            "args": "",
-            "envFile": "${workspaceFolder}/.env",
-            "vmArgs": " -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=57664 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dspring.jmx.enabled=true -Djava.rmi.server.hostname=localhost -Dspring.application.admin.enabled=true -Dspring.boot.project.name=discoveryservice"
+            "envFile": "${workspaceFolder}/.env"
         },
         {
             "type": "java",
-            "name": "Spring Boot-UserdetailsserviceApplication<userdetailsservice>",
+            "name": "User Details Service",
             "request": "launch",
-            "cwd": "${workspaceFolder}",
             "mainClass": "com.example.userdetailsservice.UserdetailsserviceApplication",
             "projectName": "userdetailsservice",
-            "args": "",
             "envFile": "${workspaceFolder}/.env"
         },
         {
             "type": "java",
-            "name": "Spring Boot-ProfileserviceApplication<profileservice>",
+            "name": "Profile Service",
             "request": "launch",
-            "cwd": "${workspaceFolder}",
             "mainClass": "com.example.profileservice.ProfileserviceApplication",
             "projectName": "profileservice",
-            "args": "",
             "envFile": "${workspaceFolder}/.env"
         },
         {
             "type": "java",
-            "name": "Spring Boot-CommunityserviceApplication<communityservice>",
+            "name": "Community Service",
             "request": "launch",
-            "cwd": "${workspaceFolder}",
             "mainClass": "com.example.communityservice.CommunityserviceApplication",
             "projectName": "communityservice",
-            "args": "",
-            "envFile": "${workspaceFolder}/.env",
-            "vmArgs": " -Dcom.sun.management.jmxremote"
+            "envFile": "${workspaceFolder}/.env"
         },
         {
             "type": "java",
-            "name": "Project Service - Instance 1",
+            "name": "Project Service (8084)",
             "request": "launch",
-            "cwd": "${workspaceFolder}",
             "mainClass": "com.example.projectservice.ProjectserviceApplication",
             "projectName": "projectservice",
             "args": "--server.port=8084",
@@ -76,9 +59,8 @@
         },
         {
             "type": "java",
-            "name": "Project Service - Instance 2",
+            "name": "Project Service (8085)",
             "request": "launch",
-            "cwd": "${workspaceFolder}",
             "mainClass": "com.example.projectservice.ProjectserviceApplication",
             "projectName": "projectservice",
             "args": "--server.port=8085",

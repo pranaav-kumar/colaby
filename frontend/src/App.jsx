@@ -13,6 +13,8 @@ import PostDetail from './pages/PostDetail';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
 import MyFriends from './pages/MyFriends';
+import Workspace from './pages/Workspace';
+
 
 function App() {
   return (
@@ -35,6 +37,7 @@ function App() {
             <Route path="/community/:communityId/posts/:postId" element={<PostDetail />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:projectId" element={<ProjectDetail />} />
+            <Route path="/workspace/:projectId" element={<Workspace />} />
             <Route path="/friends" element={<MyFriends />} />
           </Route>
 

@@ -28,6 +28,12 @@ import { extractProjectError } from '../api/projectApi';
 import { getProfileById } from '../api/usersApi';
 import VersionControlGraph from './workspace/VersionControlGraph';
 import ProjectNotes from './workspace/ProjectNotes';
+import { WorkspaceProvider } from '../context/WorkspaceContext';
+import TeamChat from '../components/workspace/TeamChat';
+import VoiceCall from '../components/workspace/VoiceCall';
+import Whiteboard from '../components/workspace/Whiteboard';
+import TheiaIDE from '../components/workspace/TheiaIDE';
+
 
 export default function ProjectDetail() {
   const { projectId } = useParams();
@@ -781,8 +787,67 @@ export default function ProjectDetail() {
                         <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
                       </svg>
                     </button>
+                    {/* Team Chat */}
+                    <button
+                      type="button"
+                      className={`project-sidebar-nav-item${activeWorkspaceTab === 'chat' ? ' active' : ''}`}
+                      onClick={() => setActiveWorkspaceTab('chat')}
+                      title="Team Chat"
+                      aria-label="Team Chat"
+                      id="workspace-chat-btn"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                    </button>
+                    {/* Voice Call */}
+                    <button
+                      type="button"
+                      className={`project-sidebar-nav-item${activeWorkspaceTab === 'voice' ? ' active' : ''}`}
+                      onClick={() => setActiveWorkspaceTab('voice')}
+                      title="Voice Call"
+                      aria-label="Voice Call"
+                      id="workspace-voice-btn"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                        <line x1="12" x2="12" y1="19" y2="22" />
+                      </svg>
+                    </button>
+                    {/* Whiteboard */}
+                    <button
+                      type="button"
+                      className={`project-sidebar-nav-item${activeWorkspaceTab === 'whiteboard' ? ' active' : ''}`}
+                      onClick={() => setActiveWorkspaceTab('whiteboard')}
+                      title="Collaborative Whiteboard"
+                      aria-label="Collaborative Whiteboard"
+                      id="workspace-whiteboard-btn"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m12 19 7-7 3 3-7 7-3-3z" />
+                        <path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                        <path d="m2 2 7.586 7.586" />
+                        <circle cx="11" cy="11" r="2" />
+                      </svg>
+                    </button>
+                    {/* Code Editor */}
+                    <button
+                      type="button"
+                      className={`project-sidebar-nav-item${activeWorkspaceTab === 'code' ? ' active' : ''}`}
+                      onClick={() => setActiveWorkspaceTab('code')}
+                      title="Collaborative Code Editor"
+                      aria-label="Collaborative Code Editor"
+                      id="workspace-code-btn"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="16 18 22 12 16 6" />
+                        <polyline points="8 6 2 12 8 18" />
+                      </svg>
+                    </button>
                   </nav>
                 )}
+
 
                 <div className="project-sidebar-divider" />
 
@@ -1013,6 +1078,19 @@ export default function ProjectDetail() {
                     {/* Workspace Views */}
                     {projectView === 'workspace' && (
                       <div className="project-workspace-wrapper">
+                        {/* Link to open full workspace */}
+                        {(activeWorkspaceTab === 'chat' || activeWorkspaceTab === 'voice' || activeWorkspaceTab === 'whiteboard' || activeWorkspaceTab === 'code') && (
+                          <div className="project-workspace-fullscreen-hint">
+                            <a
+                              href={`/workspace/${projectId}`}
+                              className="btn-workspace-open"
+                              title="Open full collaborative workspace"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:6}}><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+                              Open Full Workspace
+                            </a>
+                          </div>
+                        )}
                         {activeWorkspaceTab === 'vcs' && (
                           <VersionControlGraph
                             project={project}
@@ -1022,8 +1100,20 @@ export default function ProjectDetail() {
                         {activeWorkspaceTab === 'notes' && (
                           <ProjectNotes projectId={projectId} />
                         )}
+                        {/* Collaborative features require WorkspaceProvider (WebSocket + voice) */}
+                        {(activeWorkspaceTab === 'chat' || activeWorkspaceTab === 'voice' || activeWorkspaceTab === 'whiteboard' || activeWorkspaceTab === 'code') && (
+                          <WorkspaceProvider projectId={projectId}>
+                            <div className="project-collab-panel">
+                              {activeWorkspaceTab === 'chat' && <TeamChat />}
+                              {activeWorkspaceTab === 'voice' && <VoiceCall />}
+                              {activeWorkspaceTab === 'whiteboard' && <Whiteboard />}
+                              {activeWorkspaceTab === 'code' && <TheiaIDE />}
+                            </div>
+                          </WorkspaceProvider>
+                        )}
                       </div>
                     )}
+
 
                     {projectView === 'dashboard' && (
                       <>

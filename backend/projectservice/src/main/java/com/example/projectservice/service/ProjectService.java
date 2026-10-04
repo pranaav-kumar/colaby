@@ -139,6 +139,35 @@ public class ProjectService {
                 .toList();
     }
 
+    /**
+     * Internal: Get members without requester authorization check.
+     * Only called from InternalProjectController (service-to-service).
+     */
+    @Transactional(readOnly = true)
+    public List<MemberResponse> getMembersInternal(UUID projectId) {
+        if (!projectRepository.existsById(projectId)) {
+            return List.of();
+        }
+        return projectMemberRepository.findByIdProjectId(projectId)
+                .stream()
+                .map(member -> {
+                    UserInfo info = null;
+                    try {
+                        info = userLookupClient.getUser(member.getId().getUserId());
+                    } catch (Exception e) {
+                        // tolerate user lookup failures in internal calls
+                    }
+                    return new MemberResponse(
+                            member.getId().getUserId(),
+                            info != null ? info.userName() : null,
+                            info != null ? info.fullName() : null,
+                            member.getRole(),
+                            member.getJoinedAt()
+                    );
+                })
+                .toList();
+    }
+
     // ---- Package-private helpers used by other services ----
 
     Project findProjectOrThrow(UUID projectId) {
