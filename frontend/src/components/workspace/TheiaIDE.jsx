@@ -772,7 +772,7 @@ export default function TheiaIDE() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: '#0B1020', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0, background: '#0B1020', overflow: 'hidden' }}>
       <style>{`
         @keyframes colaby-fadein {
           from { opacity: 0; transform: translateY(6px); }
@@ -790,6 +790,7 @@ export default function TheiaIDE() {
           background: '#11182A',
           borderBottom: '1px solid #26324A',
           minHeight: '40px',
+          flexShrink: 0,
           userSelect: 'none',
           zIndex: 10
         }}
@@ -885,7 +886,7 @@ export default function TheiaIDE() {
       </header>
 
       {/* Main IDE frame */}
-      <div style={{ flex: 1, position: 'relative', width: '100%', height: 'calc(100% - 40px)', overflow: 'hidden' }}>
+      <div style={{ flex: 1, position: 'relative', width: '100%', height: 0, minHeight: 0, overflow: 'hidden' }}>
         {theiaStatus === 'ready' && theiaUrl ? (
           <iframe
             ref={iframeRef}

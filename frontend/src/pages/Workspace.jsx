@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { getWorkspace } from '../api/collaborationApi';
@@ -9,32 +9,13 @@ import Whiteboard from '../components/workspace/Whiteboard';
 import TheiaIDE from '../components/workspace/TheiaIDE';
 import TeamMembers from '../components/workspace/TeamMembers';
 import VoiceCall from '../components/workspace/VoiceCall';
+import RemoteAudioRenderer from '../components/workspace/RemoteAudioRenderer';
 import {
   IconMicrophone,
   IconMicOff,
   IconHeadphones,
   IconPhoneOff
 } from '../components/common/Icons';
-
-// Persistent remote audio renderer with autoplay handling
-const RemoteAudio = ({ stream, isDeafened }) => {
-  const audioRef = useRef(null);
-
-  useEffect(() => {
-    if (audioRef.current && stream) {
-      audioRef.current.srcObject = stream;
-      audioRef.current.volume = 1.0;
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(err => {
-          console.warn('Audio play auto-policy warning:', err.message);
-        });
-      }
-    }
-  }, [stream]);
-
-  return <audio ref={audioRef} autoPlay playsInline muted={isDeafened} style={{ display: 'none' }} />;
-};
 
 function WorkspaceContent() {
   const { activeSection, setActiveSection, loading, projectInfo, voiceCall } = useWorkspace();
@@ -43,10 +24,7 @@ function WorkspaceContent() {
 
   return (
     <div className="workspace-layout">
-      {/* Persistent audio playback across all workspace sections */}
-      {voiceCall?.isInCall && voiceCall.participants?.map(p => (
-        p.stream && <RemoteAudio key={p.id} stream={p.stream} isDeafened={voiceCall.isDeafened} />
-      ))}
+      <RemoteAudioRenderer />
 
       <ActivityBar />
       <div className="workspace-content">

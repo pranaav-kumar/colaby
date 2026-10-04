@@ -20,6 +20,7 @@ export default function VoiceCall() {
     isMuted,
     isDeafened,
     isNoiseSuppression,
+    voiceError,
     participants,
     localSpeaking,
     localAudioLevel,
@@ -44,6 +45,7 @@ export default function VoiceCall() {
           <p className="voice-lobby-desc">
             Ultra low-latency audio channel with hardware-accelerated noise suppression.
           </p>
+          {voiceError && <div className="message message-error voice-error-message" role="alert">{voiceError}</div>}
 
           <div className="voice-specs-row">
             <span className="voice-spec-chip">WebRTC Mesh</span>
@@ -87,6 +89,7 @@ export default function VoiceCall() {
           </span>
         </div>
       </div>
+      {voiceError && <div className="message message-error voice-error-message" role="alert">{voiceError}</div>}
 
       {/* Users Grid */}
       <div className="voice-grid-container">

@@ -3,12 +3,22 @@ import { useAuth } from '../context/useAuth';
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
-  { urls: 'stun:stun3.l.google.com:19302' },
-  { urls: 'stun:stun4.l.google.com:19302' },
-  { urls: 'stun:stun.stunprotocol.org:3478' }
+  { urls: 'stun:stun1.l.google.com:19302' }
 ];
+
+// TURN is necessary when a user's NAT/firewall blocks direct peer connections.
+// Vite exposes these settings to clients: use short-lived TURN credentials.
+const turnUrls = (import.meta.env?.VITE_WEBRTC_TURN_URLS || '')
+  .split(',')
+  .map((url) => url.trim())
+  .filter(Boolean);
+if (turnUrls.length) {
+  ICE_SERVERS.push({
+    urls: turnUrls,
+    username: import.meta.env?.VITE_WEBRTC_TURN_USERNAME || undefined,
+    credential: import.meta.env?.VITE_WEBRTC_TURN_CREDENTIAL || undefined
+  });
+}
 
 // High-quality audio constraints — 48kHz, studio audio profile
 const AUDIO_CONSTRAINTS = {
@@ -81,6 +91,7 @@ export function useVoiceCall(projectId, wsConnection) {
   const [isMuted, setIsMuted] = useState(false);
   const [isDeafened, setIsDeafened] = useState(false);
   const [isNoiseSuppression, setIsNoiseSuppression] = useState(true);
+  const [voiceError, setVoiceError] = useState('');
 
   // remote participants: array of { id, stream, isMuted, isDeafened, isSpeaking, audioLevel }
   const [participants, setParticipants] = useState([]);
@@ -203,7 +214,9 @@ export function useVoiceCall(projectId, wsConnection) {
       rtcpMuxPolicy: 'require',         // RTCP multiplexed with RTP — fewer ports
     });
     peerConnections.current[peerId] = pc;
-    iceCandidateQueues.current[peerId] = [];
+    // ICE can arrive before the corresponding offer. Preserve candidates that
+    // were buffered by the signaling handler before this peer was created.
+    if (!iceCandidateQueues.current[peerId]) iceCandidateQueues.current[peerId] = [];
 
     // Add local audio tracks
     if (localStream.current) {
@@ -300,6 +313,17 @@ export function useVoiceCall(projectId, wsConnection) {
     setParticipants([]);
     setLocalSpeaking(false);
     setLocalAudioLevel(0);
+  }, []);
+
+  useEffect(() => () => {
+    Object.values(peerConnections.current).forEach((pc) => {
+      try { pc.close(); } catch (_) { }
+    });
+    localStream.current?.getTracks().forEach((track) => track.stop());
+    localStream.current = null;
+    if (audioContext.current && audioContext.current.state !== 'closed') {
+      audioContext.current.close().catch(() => {});
+    }
   }, []);
 
   // Subscribe to WebSocket signaling events
@@ -480,8 +504,25 @@ export function useVoiceCall(projectId, wsConnection) {
   const joinCall = async () => {
     if (isInCall || isConnecting) return;
     setIsConnecting(true);
+    setVoiceError('');
+
+    if (!wsConnection?.isConnected) {
+      setIsConnecting(false);
+      setVoiceError('The collaboration connection is not ready yet. Try joining voice again in a moment.');
+      return;
+    }
 
     try {
+      // Resume audio during the user's click so browser autoplay protection
+      // does not block remote audio when the peer stream arrives later.
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx && (!audioContext.current || audioContext.current.state === 'closed')) {
+        audioContext.current = new AudioCtx({ latencyHint: 'interactive' });
+      }
+      if (audioContext.current?.state === 'suspended') {
+        await audioContext.current.resume();
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           ...AUDIO_CONSTRAINTS,
@@ -489,6 +530,11 @@ export function useVoiceCall(projectId, wsConnection) {
         },
         video: false
       });
+
+      if (!wsConnection?.isConnected) {
+        stream.getTracks().forEach((track) => track.stop());
+        throw new Error('The collaboration connection dropped while opening the microphone. Please try again.');
+      }
 
       localStream.current = stream;
       setupAudioAnalyser(stream, true);
@@ -501,7 +547,7 @@ export function useVoiceCall(projectId, wsConnection) {
     } catch (err) {
       console.error('Failed to get microphone stream:', err);
       setIsConnecting(false);
-      alert('Could not access microphone. Please check browser microphone permissions.');
+      setVoiceError(err?.message || 'Could not access your microphone. Check browser microphone permissions.');
     }
   };
 
@@ -580,6 +626,7 @@ export function useVoiceCall(projectId, wsConnection) {
     isMuted,
     isDeafened,
     isNoiseSuppression,
+    voiceError,
     participants,
     localSpeaking,
     localAudioLevel,
@@ -591,5 +638,3 @@ export function useVoiceCall(projectId, wsConnection) {
     toggleNoiseSuppression
   };
 }
-
-

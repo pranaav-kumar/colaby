@@ -1,1 +1,2 @@
 backend/apigateway/src/main/resources/application-local.properties
+backend/collaboration-service/workspaces/

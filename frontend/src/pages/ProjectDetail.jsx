@@ -33,6 +33,7 @@ import TeamChat from '../components/workspace/TeamChat';
 import VoiceCall from '../components/workspace/VoiceCall';
 import Whiteboard from '../components/workspace/Whiteboard';
 import TheiaIDE from '../components/workspace/TheiaIDE';
+import RemoteAudioRenderer from '../components/workspace/RemoteAudioRenderer';
 
 
 export default function ProjectDetail() {
@@ -1103,6 +1104,7 @@ export default function ProjectDetail() {
                         {/* Collaborative features require WorkspaceProvider (WebSocket + voice) */}
                         {(activeWorkspaceTab === 'chat' || activeWorkspaceTab === 'voice' || activeWorkspaceTab === 'whiteboard' || activeWorkspaceTab === 'code') && (
                           <WorkspaceProvider projectId={projectId}>
+                            <RemoteAudioRenderer />
                             <div className="project-collab-panel">
                               {activeWorkspaceTab === 'chat' && <TeamChat />}
                               {activeWorkspaceTab === 'voice' && <VoiceCall />}

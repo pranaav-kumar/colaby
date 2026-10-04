@@ -1,4 +1,7 @@
 {
     "java.configuration.updateBuildConfiguration": "automatic",
-    "maven.view": "hierarchical"
+    "maven.view": "hierarchical",
+    "files.exclude": {
+        "backend/collaboration-service/workspaces": true
+    }
 }

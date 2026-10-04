@@ -4959,15 +4959,16 @@ body {
    ══════════════════════════════════════════════════════════════ */
 
 .project-detail-page.is-workspace {
-  height: 100vh !important;
-  max-height: 100vh !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
   overflow: hidden !important;
 }
 
 .project-page-shell.is-workspace {
-  height: calc(100vh - 61px) !important;
-  max-height: calc(100vh - 61px) !important;
+  height: calc(100dvh - 61px) !important;
+  max-height: calc(100dvh - 61px) !important;
   overflow: hidden !important;
+  min-height: 0 !important;
 }
 
 .project-page-shell.is-workspace .project-sidebar {
@@ -4978,11 +4979,12 @@ body {
 }
 
 .project-main-area.is-workspace {
-  height: calc(100vh - 61px) !important;
-  max-height: calc(100vh - 61px) !important;
+  height: calc(100dvh - 61px) !important;
+  max-height: calc(100dvh - 61px) !important;
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
+  min-height: 0 !important;
 }
 
 /* In workspace view, the project topbar is a static 60px flex header, NOT sticky with 61px offset! */
@@ -4999,8 +5001,8 @@ body {
   padding: 0 !important;
   flex: 1 !important;
   min-height: 0 !important;
-  height: calc(100% - 60px) !important;
-  max-height: calc(100% - 60px) !important;
+  height: auto !important;
+  max-height: 100% !important;
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
@@ -5012,6 +5014,8 @@ body {
   width: 100%;
   height: 100%;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   position: relative;
 }
@@ -6434,6 +6438,8 @@ body {
 .workspace-layout {
   display: flex;
   height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   width: 100vw;
   overflow: hidden;
   background: var(--bg-primary);
@@ -9102,9 +9108,11 @@ body {
    Embedded Collaborative Panels (ProjectDetail workspace tabs)
 ───────────────────────────────────────── */
 .project-collab-panel {
+  flex: 1 1 0;
   width: 100%;
-  height: calc(100vh - 160px);
-  min-height: 500px;
+  height: auto;
+  min-height: 0;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -9114,8 +9122,9 @@ body {
 
 .project-collab-panel .workspace-section {
   flex: 1;
+  min-height: 0;
   overflow: auto;
-  height: 100%;
+  height: auto;
 }
 
 .project-collab-panel .chat-panel {
@@ -9127,7 +9136,21 @@ body {
   display: flex;
   justify-content: flex-end;
   padding: 8px 0;
-  margin-bottom: 8px;
+  margin-bottom: 0;
+  flex: 0 0 auto;
+}
+
+.remote-voice-audio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.voice-error-message {
+  margin: 12px 20px 0;
+  flex: 0 0 auto;
 }
 
 .btn-workspace-open {
