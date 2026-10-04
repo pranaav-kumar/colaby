@@ -1,2 +1,15 @@
 backend/apigateway/src/main/resources/application-local.properties
 backend/collaboration-service/workspaces/
+
+# Local environment variables and credentials (keep example templates tracked).
+.env
+.env.*
+!.env.example
+!.env.*.example
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+
+# Machine-specific service configuration may contain credentials.
+**/application-local.properties
