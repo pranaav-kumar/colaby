@@ -102,7 +102,7 @@ public class PostService {
             throw new ForbiddenException("You can only delete your own posts");
         }
         // Delete associated comments and votes first
-        commentRepository.deleteAll(commentRepository.findByPostId(postId));
+        commentRepository.deleteAllByPostId(postId);
         voteRepository.deleteAll(voteRepository.findByTargetIdAndTargetType(postId, TargetType.POST));
         postRepository.delete(post);
     }
@@ -111,7 +111,7 @@ public class PostService {
         String communityName = communityRepository.findById(post.getCommunityId())
                 .map(c -> c.getName())
                 .orElse("Unknown");
-        int commentCount = commentRepository.findByPostId(post.getId()).size();
+        int commentCount = Math.toIntExact(commentRepository.countByPostId(post.getId()));
         String userVote = getUserVote(userId, post.getId(), TargetType.POST);
 
         return new PostResponse(

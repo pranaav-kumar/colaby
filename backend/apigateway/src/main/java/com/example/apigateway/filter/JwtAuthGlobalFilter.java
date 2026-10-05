@@ -51,9 +51,13 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         try {
             UUID userId = jwtUtil.extractUserId(token);
 
-            // Add X-User-Id header to the downstream request
+            // Replace client-supplied identity headers with the verified JWT subject.
             ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
-                    .header("X-User-Id", userId.toString())
+                    .headers(headers -> {
+                        headers.remove("X-User-Id");
+                        headers.remove("X-UserId");
+                        headers.set("X-User-Id", userId.toString());
+                    })
                     .build();
 
             return chain.filter(exchange.mutate().request(mutatedRequest).build());

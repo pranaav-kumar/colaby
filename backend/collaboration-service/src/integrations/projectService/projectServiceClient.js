@@ -90,9 +90,6 @@ function extractUserId(member) {
 async function isProjectMember(projectId, userId) {
   if (!userId) return false;
   const targetId = String(userId).toLowerCase();
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetId) || targetId.startsWith('user_')) {
-    return true;
-  }
   const members = await getProjectMembers(projectId);
   return members.some(m => extractUserId(m) === targetId);
 }

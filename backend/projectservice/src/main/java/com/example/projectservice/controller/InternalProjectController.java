@@ -1,8 +1,11 @@
 package com.example.projectservice.controller;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,12 +25,14 @@ import com.example.projectservice.service.ProjectService;
 @RequestMapping("/projects/internal")
 public class InternalProjectController {
 
-    private static final String SERVICE_KEY = "colaby-internal-dev-key-2026";
-
     private final ProjectService projectService;
+    private final String configuredServiceKey;
 
-    public InternalProjectController(ProjectService projectService) {
+    public InternalProjectController(
+            ProjectService projectService,
+            @Value("${project-service.key}") String configuredServiceKey) {
         this.projectService = projectService;
+        this.configuredServiceKey = configuredServiceKey;
     }
 
     /**
@@ -38,7 +43,10 @@ public class InternalProjectController {
     public ResponseEntity<List<MemberResponse>> getMembersInternal(
             @PathVariable UUID projectId,
             @RequestHeader(value = "X-Service-Key", required = false) String serviceKey) {
-        if (!SERVICE_KEY.equals(serviceKey)) {
+        if (serviceKey == null || serviceKey.isBlank() || configuredServiceKey == null ||
+                configuredServiceKey.isBlank() || !MessageDigest.isEqual(
+                        configuredServiceKey.getBytes(StandardCharsets.UTF_8),
+                        serviceKey.getBytes(StandardCharsets.UTF_8))) {
             return ResponseEntity.status(403).build();
         }
         // Use the project creator/any member as the requester (internal bypass)

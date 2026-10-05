@@ -1,19 +1,13 @@
 const jwt = require('jsonwebtoken');
-const { TRUST_GATEWAY_HEADER, JWT_SECRET } = require('../config/env');
+const { JWT_SECRET } = require('../config/env');
 const { AuthenticationError } = require('../utils/errors');
 
 /**
  * Authentication middleware
  */
 function authMiddleware(req, res, next) {
-  // Check X-User-Id header (passed by API Gateway)
-  const headerUserId = req.headers['x-user-id'] || req.headers['x-userid'];
-  if (headerUserId) {
-    req.userId = String(headerUserId).toLowerCase();
-    return next();
-  }
-
-  // Fallback to Bearer JWT token in Authorization header
+  // Identity headers are metadata from the gateway, not proof of identity.
+  // Always authenticate the caller's signed token at this service boundary.
   const authHeader = req.headers.authorization || req.headers.Authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];

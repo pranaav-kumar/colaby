@@ -6,6 +6,7 @@ const logger = require('./utils/logger');
 const errorMiddleware = require('./middleware/errorMiddleware');
 const securityHeaders = require('./middleware/securityHeaders');
 const { validateWorkspaceParams } = require('./middleware/payloadValidator');
+const { THEIA_PARENT_ORIGINS } = require('./config/env');
 
 const workspaceRoutes = require('./routes/workspaceRoutes');
 const chatRoutes = require('./routes/chatRoutes');
@@ -22,7 +23,7 @@ app.use((req, res, next) => {
     return next();
   }
   return cors({
-    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:5173'],
+    origin: THEIA_PARENT_ORIGINS,
     credentials: true
   })(req, res, next);
 });

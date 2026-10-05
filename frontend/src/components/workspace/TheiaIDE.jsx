@@ -68,6 +68,22 @@ function normalizeFilePath(p = '') {
   return clean;
 }
 
+function getTheiaOrigin(iframe) {
+  if (!iframe?.src) return null;
+  try {
+    return new URL(iframe.src, window.location.href).origin;
+  } catch (_) {
+    return null;
+  }
+}
+
+function postToTheia(iframe, message) {
+  const target = iframe?.contentWindow;
+  const origin = getTheiaOrigin(iframe);
+  if (!target || !origin) return;
+  target.postMessage(message, origin);
+}
+
 function getFileBasename(filePath = '') {
   const parts = filePath.replace(/\\/g, '/').split('/');
   return parts[parts.length - 1] || filePath;
@@ -139,8 +155,10 @@ export default function TheiaIDE() {
 
       const port = theiaInfo?.port || 9100;
       setTheiaPort(port);
-      const targetUrl = `http://localhost:${port}/#/home/project`;
-      setTheiaUrl(targetUrl);
+      const targetUrl = new URL(`http://localhost:${port}/`);
+      targetUrl.searchParams.set('colabyParentOrigin', window.location.origin);
+      targetUrl.hash = '/home/project';
+      setTheiaUrl(targetUrl.toString());
       setBootStep(2);
 
       const pollStatus = async () => {
@@ -205,12 +223,12 @@ export default function TheiaIDE() {
     if (theiaStatus !== 'ready' || !iframeRef.current?.contentWindow) return;
     const timer = setTimeout(() => {
       if (!iframeRef.current?.contentWindow) return;
-      iframeRef.current.contentWindow.postMessage({
+      postToTheia(iframeRef.current, {
         type: 'COLABY_USER_ROLE',
         role: isCreator ? 'CREATOR' : 'MEMBER',
         isCreator,
         projectId: projectIdRef.current
-      }, '*');
+      });
     }, 3000);
     return () => clearTimeout(timer);
   }, [theiaStatus, iframeKey, isCreator]);
@@ -218,10 +236,10 @@ export default function TheiaIDE() {
   // ── 3. Forward presence map to iframe for remote carets ───────────────────
   useEffect(() => {
     if (theiaStatus !== 'ready' || !iframeRef.current?.contentWindow) return;
-    iframeRef.current.contentWindow.postMessage({
+    postToTheia(iframeRef.current, {
       type: 'COLABY_REMOTE_PRESENCE',
       collaborators
-    }, '*');
+    });
   }, [collaborators, theiaStatus]);
 
   // ── 4. Yjs CRDT bridge with Generation & Ownership Guards ─────────────────
@@ -354,7 +372,7 @@ export default function TheiaIDE() {
           });
 
           if (iframeRef.current?.contentWindow) {
-            iframeRef.current.contentWindow.postMessage({
+            postToTheia(iframeRef.current, {
               type: 'COLABY_REMOTE_EDIT',
               filePath: canonical,
               content: newContent,
@@ -363,7 +381,7 @@ export default function TheiaIDE() {
               senderUserId: pendingMeta.senderUserId || 'unknown',
               modelUri,
               modelVersionId
-            }, '*');
+            });
           }
         }
       });
@@ -401,10 +419,22 @@ export default function TheiaIDE() {
   // Listen for messages from Theia iframe → apply to local Yjs doc → broadcast
   useEffect(() => {
     const handleTheiaBridgeMessage = (event) => {
+      const iframeWindow = iframeRef.current?.contentWindow;
+      const iframeSrc = iframeRef.current?.src;
+      let iframeOrigin;
+      try {
+        iframeOrigin = iframeSrc ? new URL(iframeSrc, window.location.href).origin : null;
+      } catch (_) {
+        return;
+      }
+      if (!iframeWindow || event.source !== iframeWindow || event.origin !== iframeOrigin) return;
+
       const data = event.data;
-      if (!data || !wsConnectionRef.current?.sendMessage) return;
+      if (!data || typeof data.filePath !== 'string' || !wsConnectionRef.current?.sendMessage) return;
 
       if (data.type === 'COLABY_THEIA_EDIT') {
+        if (data.content !== undefined && typeof data.content !== 'string') return;
+        if (data.operation !== undefined && (!data.operation || typeof data.operation !== 'object')) return;
         const canonical = normalizeFilePath(data.filePath);
         const entry = getOrCreateYDoc(canonical);
         if (!entry || entry.isDisposed) return;
@@ -462,7 +492,7 @@ export default function TheiaIDE() {
           if (entry.ytext.length > 0) {
             // Y.Doc already contains active collaborative state — sync it immediately to the newly opened Monaco model!
             if (iframeRef.current?.contentWindow) {
-              iframeRef.current.contentWindow.postMessage({
+              postToTheia(iframeRef.current, {
                 type: 'COLABY_REMOTE_EDIT',
                 filePath: canonical,
                 content: entry.ytext.toString(),
@@ -470,7 +500,7 @@ export default function TheiaIDE() {
                 userId: userRef.current?.userId || userRef.current?.id,
                 modelUri: entry.modelUri,
                 modelVersionId: entry.modelVersionId
-              }, '*');
+              });
             }
           }
         }
@@ -584,7 +614,7 @@ export default function TheiaIDE() {
           requestCodeSync(canonical);
         }
         if (iframeRef.current?.contentWindow) {
-          iframeRef.current.contentWindow.postMessage({
+          postToTheia(iframeRef.current, {
             type: 'COLABY_REMOTE_EDIT',
             filePath: canonical,
             content: payload.content,
@@ -593,7 +623,7 @@ export default function TheiaIDE() {
             senderUserId: payload.userId,
             modelUri: entry.modelUri,
             modelVersionId: entry.modelVersionId
-          }, '*');
+          });
         }
       }
 
@@ -624,7 +654,7 @@ export default function TheiaIDE() {
       }
       // Ensure the iframe receives the latest state from CODE_SYNC
       if (iframeRef.current?.contentWindow && ytext.length > 0) {
-        iframeRef.current.contentWindow.postMessage({
+        postToTheia(iframeRef.current, {
           type: 'COLABY_REMOTE_EDIT',
           filePath: canonical,
           content: ytext.toString(),
@@ -632,7 +662,7 @@ export default function TheiaIDE() {
           userId: userRef.current?.userId || userRef.current?.id,
           modelUri: entry.modelUri,
           modelVersionId: entry.modelVersionId
-        }, '*');
+        });
       }
     });
 
@@ -688,10 +718,10 @@ export default function TheiaIDE() {
           }
         };
         if (iframeRef.current?.contentWindow) {
-          iframeRef.current.contentWindow.postMessage({
+          postToTheia(iframeRef.current, {
             type: 'COLABY_REMOTE_PRESENCE',
             collaborators: next
-          }, '*');
+          });
         }
         return next;
       });
@@ -705,10 +735,10 @@ export default function TheiaIDE() {
         const next = { ...prev };
         delete next[uId];
         if (iframeRef.current?.contentWindow) {
-          iframeRef.current.contentWindow.postMessage({
+          postToTheia(iframeRef.current, {
             type: 'COLABY_REMOTE_PRESENCE',
             collaborators: next
-          }, '*');
+          });
         }
         return next;
       });

@@ -4,17 +4,23 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.example.communityservice.entity.Comment;
 
 public interface CommentRepository extends JpaRepository<Comment, UUID> {
 
-    /** All top-level comments for a post (no parent). */
-    List<Comment> findByPostIdAndParentCommentIdIsNullOrderByCreatedAtAsc(UUID postId);
+    /** Bounded comment tree for a post, ordered parent-before-child by creation time. */
+    List<Comment> findTop1000ByPostIdOrderByCreatedAtAsc(UUID postId);
 
-    /** All direct replies to a given comment. */
-    List<Comment> findByParentCommentIdOrderByCreatedAtAsc(UUID parentCommentId);
+    /** Bounded direct replies used while deleting a comment tree. */
+    List<Comment> findTop1001ByParentCommentIdOrderByCreatedAtAsc(UUID parentCommentId);
 
-    /** All comments for a post (for bulk deletion when a post is deleted). */
-    List<Comment> findByPostId(UUID postId);
+    long countByPostId(UUID postId);
+
+    @Modifying
+    @Query("delete from Comment c where c.postId = :postId")
+    int deleteAllByPostId(@Param("postId") UUID postId);
 }

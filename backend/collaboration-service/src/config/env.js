@@ -14,8 +14,10 @@ const config = {
   PROJECT_SERVICE_URL: process.env.PROJECT_SERVICE_URL,
   PROJECT_SERVICE_KEY: process.env.PROJECT_SERVICE_KEY,
   JWT_SECRET: process.env.JWT_SECRET,
+  THEIA_PARENT_ORIGINS: (process.env.THEIA_PARENT_ORIGINS ||
+    'http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5173')
+    .split(',').map(origin => origin.trim()).filter(Boolean),
   NODE_ENV: process.env.NODE_ENV || 'development',
-  TRUST_GATEWAY_HEADER: process.env.TRUST_GATEWAY_HEADER === 'true',
   WORKSPACE_ROOT_DIR: path.isAbsolute(configuredWorkspaceRoot)
     ? configuredWorkspaceRoot
     : path.resolve(serviceRoot, configuredWorkspaceRoot),

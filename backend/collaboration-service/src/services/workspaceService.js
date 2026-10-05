@@ -199,6 +199,10 @@ async function cloneRepository(projectId, rawRepoUrl, token = null, userId = 'sy
  * Gets file content by path
  */
 async function getFileContent(projectId, filePath) {
+  const workspace = await getOrCreateWorkspace(projectId);
+  const workspaceRoot = workspace.repoPath || getWorkspaceDir(projectId);
+  const diskPath = sanitizePath(filePath, workspaceRoot);
+
   // First check in-memory code session
   try {
     const session = await codeSessionManager.getOrCreateSession(projectId, filePath);
@@ -215,13 +219,8 @@ async function getFileContent(projectId, filePath) {
   }
 
   // Next check physical file on disk
-  const workspace = await getOrCreateWorkspace(projectId);
-  if (workspace.repoPath) {
-    const cleanPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
-    const diskPath = path.join(workspace.repoPath, cleanPath);
-    if (fs.existsSync(diskPath) && fs.statSync(diskPath).isFile()) {
-      return fs.readFileSync(diskPath, 'utf8');
-    }
+  if (workspace.repoPath && fs.existsSync(diskPath) && fs.statSync(diskPath).isFile()) {
+    return fs.readFileSync(diskPath, 'utf8');
   }
 
   return '';
@@ -233,7 +232,9 @@ const saveDebounceTimers = new Map();
 /**
  * Debounced save of file content to in-memory session immediately and DB/disk after delay
  */
-function saveFileContentDebounced(projectId, filePath, content, userId = 'system', delayMs = 1500) {
+async function saveFileContentDebounced(projectId, filePath, content, userId = 'system', delayMs = 1500) {
+  const workspace = await getOrCreateWorkspace(projectId);
+  sanitizePath(filePath, workspace.repoPath || getWorkspaceDir(projectId));
   const key = `${projectId}:${filePath}`;
 
   // 1. Immediately update in-memory session
@@ -265,6 +266,9 @@ function saveFileContentDebounced(projectId, filePath, content, userId = 'system
  * Saves file content
  */
 async function saveFileContent(projectId, filePath, content, userId = 'system') {
+  const workspace = await getOrCreateWorkspace(projectId);
+  const workspaceRoot = workspace.repoPath || getWorkspaceDir(projectId);
+  let diskPath = sanitizePath(filePath, workspaceRoot);
   const key = `${projectId}:${filePath}`;
   if (saveDebounceTimers.has(key)) {
     clearTimeout(saveDebounceTimers.get(key));
@@ -293,14 +297,12 @@ async function saveFileContent(projectId, filePath, content, userId = 'system') 
 
   // 3. Write to disk if workspace exists
   try {
-    const workspace = await getOrCreateWorkspace(projectId);
     if (workspace.repoPath) {
-      const cleanPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
-      const diskPath = path.join(workspace.repoPath, cleanPath);
       const dir = path.dirname(diskPath);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
+      diskPath = sanitizePath(filePath, workspaceRoot);
       logger.info(`[COLABY_FS_WRITE]`, {
         timestamp: new Date().toISOString(),
         workspaceId: projectId,

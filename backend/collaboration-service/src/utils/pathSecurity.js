@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const { ValidationError } = require('./errors');
 
@@ -18,10 +19,10 @@ function normalizePath(inputPath) {
  * @returns {boolean}
  */
 function isWithinWorkspace(filePath, workspaceRoot) {
-  const cleanRelative = String(filePath).replace(/^[/\\]+/, '');
-  const resolvedPath = path.resolve(workspaceRoot, cleanRelative);
+  const resolvedPath = path.resolve(filePath);
   const resolvedRoot = path.resolve(workspaceRoot);
-  return resolvedPath.startsWith(resolvedRoot + path.sep) || resolvedPath === resolvedRoot;
+  const relative = path.relative(resolvedRoot, resolvedPath);
+  return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
 }
 
 /**
@@ -48,7 +49,7 @@ function validateFileName(name) {
  */
 function validatePath(filePath) {
   const normalized = normalizePath(filePath);
-  if (normalized.includes('../') || normalized.includes('..\\')) {
+  if (normalized.includes('\0') || normalized === '..' || normalized.startsWith('../') || normalized.includes('/../')) {
     throw new ValidationError('Path traversal not allowed');
   }
   if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
@@ -65,10 +66,43 @@ function validatePath(filePath) {
 function sanitizePath(filePath, workspaceRoot) {
   const validPath = validatePath(filePath);
   const cleanRelative = validPath.replace(/^[/\\]+/, '');
-  if (!isWithinWorkspace(cleanRelative, workspaceRoot)) {
+  const resolvedRoot = path.resolve(workspaceRoot);
+  fs.mkdirSync(resolvedRoot, { recursive: true });
+  const realRoot = fs.realpathSync(resolvedRoot);
+  const diskPath = path.resolve(realRoot, cleanRelative);
+  if (!isWithinWorkspace(diskPath, realRoot)) {
     throw new ValidationError('Path is outside workspace');
   }
-  return path.resolve(workspaceRoot, cleanRelative);
+
+  // Existing symlink components are allowed only when their real targets stay
+  // inside the workspace. For a new file, check its nearest existing parent so
+  // a symlinked directory cannot redirect a future write outside the root.
+  let existingPath = diskPath;
+  const missingParts = [];
+  while (true) {
+    try {
+      fs.lstatSync(existingPath);
+      break;
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      const parent = path.dirname(existingPath);
+      if (parent === existingPath) throw error;
+      missingParts.unshift(path.basename(existingPath));
+      existingPath = parent;
+    }
+  }
+
+  const realExistingPath = fs.realpathSync(existingPath);
+  if (!isWithinWorkspace(realExistingPath, realRoot)) {
+    throw new ValidationError('Path resolves outside workspace');
+  }
+
+  const resolvedExistingTarget = path.resolve(realExistingPath, ...missingParts);
+  if (!isWithinWorkspace(resolvedExistingTarget, realRoot)) {
+    throw new ValidationError('Path resolves outside workspace');
+  }
+
+  return diskPath;
 }
 
 module.exports = {

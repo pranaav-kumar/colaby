@@ -63,11 +63,12 @@ Required environment variables:
 | `PORT` | Server port | `8090` |
 | `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/colaby-collaboration` |
 | `PROJECT_SERVICE_URL` | Project Service base URL | `http://localhost:8084` |
-| `PROJECT_SERVICE_KEY` | Service-to-service auth key | *(required)* |
+| `PROJECT_SERVICE_KEY` | Random service-to-service secret; configure the same value for collaboration-service and project-service | *(required)* |
 | `JWT_SECRET` | JWT signing secret (shared with Auth Service) | *(required)* |
 | `NODE_ENV` | Environment | `development` |
-| `TRUST_GATEWAY_HEADER` | Trust X-User-Id from gateway | `true` |
 | `WORKSPACE_ROOT_DIR` | Base directory for cloned repos | `./workspaces` |
+
+Generate `PROJECT_SERVICE_KEY` outside source control and provide it to both services through their runtime environment (or ignored local configuration). The example file intentionally leaves secrets blank. Spring service ports bind to loopback in the local configuration; deployments using separate hosts must enforce an equivalent private network boundary. The collaboration service authenticates bearer JWTs directly because browser and IDE-container clients connect to it.
 
 ### Running
 

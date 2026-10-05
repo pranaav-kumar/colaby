@@ -9,7 +9,7 @@ const fs = require('fs');
 
 const execFileAsync = util.promisify(execFile);
 const execAsync = util.promisify(exec);
-const { PORT } = require('../config/env');
+const { PORT, THEIA_PARENT_ORIGINS } = require('../config/env');
 
 const logger = require('../utils/logger');
 
@@ -420,6 +420,19 @@ async function injectCollabBridge(containerName, projectId) {
 (function() {
   console.log('[COLLAB-BRIDGE] VERSION = 2026-09-09-PROD-02');
 
+  var allowedParentOrigins = ${JSON.stringify(THEIA_PARENT_ORIGINS)};
+  var colabyParentOrigin = '';
+  try {
+    var requestedParentOrigin = new URLSearchParams(window.location.search).get('colabyParentOrigin');
+    if (requestedParentOrigin) {
+      var parsedParentOrigin = new URL(requestedParentOrigin).origin;
+      if (allowedParentOrigins.indexOf(parsedParentOrigin) !== -1) colabyParentOrigin = parsedParentOrigin;
+    }
+  } catch (_) {}
+  function postToParent(message) {
+    if (colabyParentOrigin) window.parent.postMessage(message, colabyParentOrigin);
+  }
+
   function normalizeCleanPath(p) {
     if (!p) return '';
     var s = (typeof p === 'object' && p.path) ? p.path : String(p);
@@ -507,7 +520,7 @@ async function injectCollabBridge(containerName, projectId) {
       console.log('[COLLAB-FILE] MODEL_DISCOVERED', { workspaceId: window.__COLABY_PROJECT_ID||'', rawFilePath:rawUri, canonicalFilePath:canonical, roomId:(window.__COLABY_PROJECT_ID||'')+':'+canonical });
 
       var initialContent = typeof model.getValue === 'function' ? model.getValue() : '';
-      window.parent.postMessage({ type:'COLABY_THEIA_FILE_OPENED', filePath:canonical, content:initialContent, modelUri:rawUri, modelVersionId:typeof model.getVersionId==='function'?model.getVersionId():1 }, '*');
+      postToParent({ type:'COLABY_THEIA_FILE_OPENED', filePath:canonical, content:initialContent, modelUri:rawUri, modelVersionId:typeof model.getVersionId==='function'?model.getVersionId():1 });
 
       var contentListener = model.onDidChangeContent(function(e) {
         if (model._isApplyingCollabRemote) return;
@@ -518,11 +531,11 @@ async function injectCollabBridge(containerName, projectId) {
         var uId = window.__COLABY_USER_ID || 'user';
         var mVer = typeof model.getVersionId === 'function' ? model.getVersionId() : 1;
         console.log('[COLAB-LIVE] A_LOCAL_EDIT', { updateId:updateId, userId:uId, filePath:canonical, canonicalPath:canonical, ydocKey:(window.__COLABY_PROJECT_ID||'')+':'+canonical, modelUri:rawUri, modelVersionId:mVer, timestamp:new Date().toISOString() });
-        window.parent.postMessage({
+        postToParent({
           type:'COLABY_THEIA_EDIT', filePath:canonical, content:newContent,
           updateId:updateId, modelUri:rawUri, modelVersionId:mVer,
           operation: change ? { range:{ startLineNumber:change.range.startLineNumber, startColumn:change.range.startColumn, endLineNumber:change.range.endLineNumber, endColumn:change.range.endColumn }, rangeOffset:change.rangeOffset, rangeLength:change.rangeLength, text:change.text } : null
-        }, '*');
+        });
       });
 
       if (typeof model.onWillDispose === 'function') {
@@ -546,15 +559,15 @@ async function injectCollabBridge(containerName, projectId) {
       editor.onDidChangeModel(function() {
         var m = editor.getModel(); if (!m) return;
         hookModel(m);
-        window.parent.postMessage({ type:'COLABY_THEIA_FILE_OPENED', filePath:getCleanPath(m.uri), content:typeof m.getValue==='function'?m.getValue():'' }, '*');
+        postToParent({ type:'COLABY_THEIA_FILE_OPENED', filePath:getCleanPath(m.uri), content:typeof m.getValue==='function'?m.getValue():'' });
       });
       editor.onDidChangeCursorPosition(function(e) {
         var m = editor.getModel(); if (!m) return;
-        window.parent.postMessage({ type:'COLABY_THEIA_CURSOR', filePath:getCleanPath(m.uri), position:e.position }, '*');
+        postToParent({ type:'COLABY_THEIA_CURSOR', filePath:getCleanPath(m.uri), position:e.position });
       });
       editor.onDidChangeCursorSelection(function(e) {
         var m = editor.getModel(); if (!m) return;
-        window.parent.postMessage({ type:'COLABY_THEIA_SELECTION', filePath:getCleanPath(m.uri), selection:e.selection }, '*');
+        postToParent({ type:'COLABY_THEIA_SELECTION', filePath:getCleanPath(m.uri), selection:e.selection });
       });
       editor.onDidDispose(function() { editorDecorations.delete(editor); boundEditors.delete(editor); });
     }
@@ -562,6 +575,7 @@ async function injectCollabBridge(containerName, projectId) {
     if (window.monaco.editor.getEditors) { window.monaco.editor.getEditors().forEach(hookEditor); }
 
     window.addEventListener('message', function(event) {
+      if (!colabyParentOrigin || event.source !== window.parent || event.origin !== colabyParentOrigin) return;
       var msg = event.data;
       if (!msg || !msg.type) return;
 
