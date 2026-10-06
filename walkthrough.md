@@ -171,7 +171,7 @@ Content-Type: application/json
 ---
 
 ### 2.2 Get Your Profile (by ID)
-a2257a86-86e0-40a2-9dd2-6e9973bde626
+
 First get your user ID from the JWT (decode it at [jwt.io](https://jwt.io)), then:
 
 ```
@@ -218,9 +218,9 @@ Content-Type: application/json
 ```json
 {
     "id": "0e528a56-16fe-4cf7-9682-a67df22e442e",
-    "name": "python-devs",
-    "description": "A community for Python developers to share knowledge and ask questions.",
-    "createdBy": "a2257a86-86e0-40a2-9dd2-6e9973bde626",
+    "name": "java-devs",
+    "description": "A community for Java developers to share knowledge and ask questions.",
+    "createdBy": "your-user-uuid",
     "createdAt": "2026-09-02T08:37:40.077576900Z",
     "memberCount": 1,
     "isMember": true
@@ -604,8 +604,8 @@ Frontend / Postman
        ▼
   API Gateway :8080
   ├─ Validates JWT → injects X-User-Id header
-  ├─ Rate limiting via Redis (IP for /auth, User UUID for rest)
-  └─ Circuit breaker per route
+  ├─ Rate limiting via Redis (IP for /auth, User UUID for authenticated routes)
+  └─ Routes requests to the backend services
        │
        ├──► Auth Service :8081        (signup, login, refresh, logout)
        ├──► User Details Service :8082 (profile CRUD)
@@ -615,7 +615,7 @@ Frontend / Postman
             PostgreSQL (colaby-community DB)
 ```
 
-The **community service never validates the JWT itself** — it simply reads the `X-User-Id` header that the gateway has already verified and injected. This is why all your Postman requests go to port `8080` only.
+The gateway validates JWTs for protected Spring-service routes and injects `X-User-Id`. The collaboration service separately validates bearer JWTs and project membership. Postman REST requests in this walkthrough use port `8080`; the collaboration WebSocket uses port `8090` directly.
 
 
 ---
@@ -628,17 +628,21 @@ Frontend / Postman
        v
   API Gateway :8080
   |- Validates JWT -> injects X-User-Id header
-  |- Rate limiting via Redis (IP for /auth, User UUID for rest)
-  +- Circuit breaker per route
+  |- Rate limiting via Redis (IP for /auth, User UUID for authenticated routes)
+  +- Routes requests to backend services
        |
        +---> Auth Service :8081          (signup, login, refresh, logout)
        +---> User Details Service :8082  (profile CRUD)
        +---> Community Service :8083     (communities, posts, comments, votes)
        +---> Project Service :8084       (projects, invitations, tasks, docs)
-       +---> Profile Service :8083       (friends system)
+       +---> Profile Service :8085       (friends system)
+       +---> Collaboration Service :8090 (project workspaces, chat, whiteboards, files, code editing, voice)
 ```
 
 > **Note:** Profile Service registers as `PROFILESERVICE` in Eureka. The gateway routes `/profiles/**` → `lb://PROFILESERVICE`.
+> The collaboration service is addressed directly by the gateway at `http://localhost:8090`; its HTTP API is exposed under `/collaboration`.
+
+The collaboration service also verifies the JWT and project membership itself. The gateway forwards its HTTP requests under `/collaboration/**`; its WebSocket connection is made directly to port `8090`.
 
 ---
 
@@ -695,6 +699,8 @@ Response 201 Created:
   "techStack": "Java, Spring Boot, PostgreSQL, React",
   "status": "ACTIVE",
   "createdBy": "your-user-uuid",
+  "createdByUserName": "alice_dev",
+  "createdByFullName": "Alice Dev",
   "createdAt": "2026-09-06T16:30:00Z",
   "updatedAt": "2026-09-06T16:30:00Z",
   "memberCount": 1,
@@ -795,12 +801,16 @@ Response 200 OK:
 ```json
 [
   {
-    "id": { "userId": "creator-uuid", "projectId": "a1b2c3d4-..." },
+    "userId": "creator-uuid",
+    "userName": "alice_dev",
+    "fullName": "Alice Dev",
     "role": "CREATOR",
     "joinedAt": "2026-09-06T16:30:00Z"
   },
   {
-    "id": { "userId": "member-uuid", "projectId": "a1b2c3d4-..." },
+    "userId": "member-uuid",
+    "userName": "bob_builder",
+    "fullName": "Bob Builder",
     "role": "MEMBER",
     "joinedAt": "2026-09-06T17:00:00Z"
   }
@@ -836,8 +846,13 @@ Response 201 Created:
 {
   "id": "inv-uuid-1234",
   "projectId": "a1b2c3d4-...dock",
+  "projectName": "Colaby Backend",
   "targetUserId": "your-user-uuid",
+  "targetUserName": "alice_dev",
+  "targetUserFullName": "Alice Dev",
   "initiatedBy": "your-user-uuid",
+  "initiatedByUserName": "alice_dev",
+  "initiatedByFullName": "Alice Dev",
   "type": "JOIN_REQUEST",
   "status": "PENDING",
   "createdAt": "2026-09-06T16:35:00Z",
@@ -972,13 +987,18 @@ Response 201 Created:
 {
   "id": "task-uuid-...",
   "projectId": "a1b2c3d4-...",
+  "projectName": "Colaby Backend",
   "assignedTo": "member-user-uuid",
+  "assignedToUserName": "bob_builder",
+  "assignedToFullName": "Bob Builder",
   "assignedBy": "creator-uuid",
+  "assignedByUserName": "alice_dev",
+  "assignedByFullName": "Alice Dev",
   "title": "Implement JWT refresh flow",
   "description": "Use opaque tokens stored in Redis with 7-day TTL",
   "progressPercent": 0,
   "progressNote": null,
-  "status": "TODO",
+  "status": "PENDING",
   "createdAt": "2026-09-06T16:40:00Z",
   "updatedAt": "2026-09-06T16:40:00Z"
 }
@@ -1018,13 +1038,23 @@ Authorization: Bearer {{token}}
 ### 9.4 Update Task Progress (Assignee only)
 
 Updates numerical progress (0-100) and an optional descriptive note in one call.
-Status is auto-derived - never set it manually:
+Progress updates derive status automatically:
 
 | progressPercent | status auto-set to |
 |---|---|
-| 0 | TODO |
-| 1 to 99 | IN_PROGRESS |
+| 0 | PENDING |
+| 1 to 99 | ONGOING |
 | 100 | DONE |
+
+Tasks are initially created with status `PENDING`. You can also move a task between Kanban statuses with `PATCH /projects/{projectId}/tasks/{taskId}/status`; the assignee or project creator may do this. Moving to `DONE` sets progress to 100; moving to `PENDING` resets progress to 0.
+
+```json
+{
+  "status": "ONGOING"
+}
+```
+
+Valid status values are `PENDING`, `ONGOING`, and `DONE`.
 
 ```
 PATCH http://localhost:8080/projects/{projectId}/tasks/{taskId}/progress
@@ -1048,9 +1078,17 @@ Response 200 OK:
 ```json
 {
   "id": "task-uuid-...",
+  "projectId": "a1b2c3d4-...",
+  "projectName": "Colaby Backend",
+  "assignedTo": "member-user-uuid",
+  "assignedToUserName": "bob_builder",
+  "assignedToFullName": "Bob Builder",
+  "assignedBy": "creator-uuid",
+  "assignedByUserName": "alice_dev",
+  "assignedByFullName": "Alice Dev",
   "progressPercent": 65,
   "progressNote": "Token storage in Redis done. Working on the /refresh endpoint now.",
-  "status": "IN_PROGRESS",
+  "status": "ONGOING",
   "updatedAt": "2026-09-06T17:30:00Z"
 }
 ```
@@ -1180,7 +1218,7 @@ CREATE TABLE projects (
     description     TEXT,
     github_repo_url VARCHAR,
     tech_stack      VARCHAR,
-    status          VARCHAR NOT NULL DEFAULT 'ACTIVE',
+    status          VARCHAR NOT NULL,
     created_by      UUID NOT NULL,
     created_at      TIMESTAMP NOT NULL,
     updated_at      TIMESTAMP NOT NULL
@@ -1212,9 +1250,9 @@ CREATE TABLE project_tasks (
     assigned_by      UUID NOT NULL,
     title            VARCHAR NOT NULL,
     description      TEXT,
-    progress_percent INT NOT NULL DEFAULT 0,
+    progress_percent INT NOT NULL,
     progress_note    TEXT,
-    status           VARCHAR NOT NULL DEFAULT 'TODO',
+    status           VARCHAR NOT NULL,
     created_at       TIMESTAMP NOT NULL,
     updated_at       TIMESTAMP NOT NULL
 );
@@ -1271,7 +1309,11 @@ No request body needed. `{receiverId}` is the UUID of the user you want to add.
 {
   "id": "fr-uuid-1234",
   "senderId": "your-user-uuid",
+  "senderUsername": "alice_dev",
+  "senderFullName": "Alice Dev",
   "receiverId": "target-user-uuid",
+  "receiverUsername": "bob_builder",
+  "receiverFullName": "Bob Builder",
   "status": "PENDING",
   "createdAt": "2026-09-07T13:45:00Z",
   "resolvedAt": null
@@ -1301,7 +1343,11 @@ Authorization: Bearer {{token}}
 {
   "id": "fr-uuid-1234",
   "senderId": "user-a-uuid",
+  "senderUsername": "alice_dev",
+  "senderFullName": "Alice Dev",
   "receiverId": "your-user-uuid",
+  "receiverUsername": "bob_builder",
+  "receiverFullName": "Bob Builder",
   "status": "ACCEPTED",
   "createdAt": "2026-09-07T13:45:00Z",
   "resolvedAt": "2026-09-07T13:50:00Z"
@@ -1331,7 +1377,11 @@ Authorization: Bearer {{token}}
 {
   "id": "fr-uuid-1234",
   "senderId": "user-a-uuid",
+  "senderUsername": "alice_dev",
+  "senderFullName": "Alice Dev",
   "receiverId": "your-user-uuid",
+  "receiverUsername": "bob_builder",
+  "receiverFullName": "Bob Builder",
   "status": "REJECTED",
   "createdAt": "2026-09-07T13:45:00Z",
   "resolvedAt": "2026-09-07T13:52:00Z"
@@ -1360,7 +1410,11 @@ Authorization: Bearer {{token}}
   {
     "id": "fr-uuid-1234",
     "senderId": "user-a-uuid",
+    "senderUsername": "alice_dev",
+    "senderFullName": "Alice Dev",
     "receiverId": "your-user-uuid",
+    "receiverUsername": "bob_builder",
+    "receiverFullName": "Bob Builder",
     "status": "PENDING",
     "createdAt": "2026-09-07T13:45:00Z",
     "resolvedAt": null
@@ -1735,7 +1789,7 @@ userdetailsservice.base-url=http://localhost:8082
   "title": "Build the dashboard",
   "progressPercent": 50,
   "progressNote": "Dashboard skeleton done",
-  "status": "IN_PROGRESS",
+  "status": "ONGOING",
   "createdAt": "2026-09-07T21:22:34Z",
   "updatedAt": "2026-09-07T21:23:18Z"
 }
@@ -1754,13 +1808,236 @@ const displayName = member.userName ?? `User (${member.userId.slice(0, 8)}...)`;
 
 ---
 
+# Phase 13 - Real-Time Collaboration Workspaces
+
+The collaboration service provides each project with a shared workspace for files, chat, whiteboards, collaborative code editing, voice signaling, and an IDE/terminal. It runs as a separate Node.js service on port `8090`; project membership is checked against Project Service. Create a project and join it (Phases 7-8) before making these requests.
+
+## Setup
+
+Start MongoDB, Project Service, and the collaboration service. Configure the collaboration service using `backend/collaboration-service/.env.example`: set `MONGODB_URI`, `PROJECT_SERVICE_URL`, `PROJECT_SERVICE_KEY`, and `JWT_SECRET`. `PROJECT_SERVICE_KEY` must match the key configured in Project Service, and `JWT_SECRET` must match Auth Service. The default collaboration-service port is `8090`.
+
+From `backend/collaboration-service`, install the Node dependencies and start the service:
+
+```sh
+npm install
+npm start
+```
+
+REST calls through the gateway use this base path:
+
+```
+http://localhost:8080/collaboration/api/workspaces/{projectId}
+```
+
+Include `Authorization: Bearer {{token}}` on workspace requests. The service verifies the JWT itself and verifies project membership; the gateway's `X-User-Id` header alone is not sufficient. Direct service calls use `http://localhost:8090/api/workspaces/{projectId}`.
+
+### 13.1 Get or Create a Workspace
+
+Returns the workspace record and repository URL. This endpoint creates the workspace record if one does not exist yet.
+
+```
+GET http://localhost:8080/collaboration/api/workspaces/{projectId}
+Authorization: Bearer {{token}}
+```
+
+The response is wrapped in `{ "success": true, "data": ... }`.
+
+### 13.2 Initialize an Empty Workspace
+
+```
+POST http://localhost:8080/collaboration/api/workspaces/{projectId}/initialize/empty
+Authorization: Bearer {{token}}
+```
+
+No body is required. The service creates an empty workspace when it is not already initialized. The equivalent routes `/initialize` and `/initialize/empty` are both available.
+
+### 13.3 Clone the Project Repository
+
+The project must have a GitHub repository URL configured, or provide `repoUrl` in the body. `token` is an optional Git credential for private repositories.
+
+```
+POST http://localhost:8080/collaboration/api/workspaces/{projectId}/initialize/clone
+Authorization: Bearer {{token}}
+Content-Type: application/json
+```
+
+```json
+{
+  "token": "github-access-token"
+}
+```
+
+To supply a repository URL explicitly:
+
+```json
+{
+  "repoUrl": "https://github.com/example/repository.git",
+  "token": "github-access-token"
+}
+```
+
+The alias `POST /clone` is also available. If no repository URL can be found, the service returns `400` with code `NO_REPO_URL`.
+
+### 13.4 Browse and Read Files
+
+Get the file tree:
+
+```
+GET http://localhost:8080/collaboration/api/workspaces/{projectId}/tree
+Authorization: Bearer {{token}}
+```
+
+Read a file (URL-encode the path):
+
+```
+GET http://localhost:8080/collaboration/api/workspaces/{projectId}/file?path=src%2FApp.jsx
+Authorization: Bearer {{token}}
+```
+
+### 13.5 Save a File
+
+```
+POST http://localhost:8080/collaboration/api/workspaces/{projectId}/file
+Authorization: Bearer {{token}}
+Content-Type: application/json
+```
+
+```json
+{
+  "path": "src/App.jsx",
+  "content": "export default function App() { return <main>Hi</main>; }"
+}
+```
+
+### 13.6 Apply a File or Folder Operation
+
+Operations can also be broadcast to connected collaborators over WebSocket. Accepted operation types include `FILE_CREATE`, `FILE_DELETE`, `FILE_RENAME`, `FILE_MOVE`, `FOLDER_CREATE`, `FOLDER_DELETE`, `FOLDER_RENAME`, and `FOLDER_MOVE`.
+
+```
+POST http://localhost:8080/collaboration/api/workspaces/{projectId}/files/operation
+Authorization: Bearer {{token}}
+Content-Type: application/json
+```
+
+Operation payload requirements depend on the selected operation; see the WebSocket examples below for the event format.
+
+### 13.7 Project Members
+
+```
+GET http://localhost:8080/collaboration/api/workspaces/{projectId}/members
+Authorization: Bearer {{token}}
+```
+
+Returns the Project Service member list in the standard success/data response wrapper.
+
+### 13.8 Workspace Chat
+
+Get paginated history (optional `before` cursor and `limit`):
+
+```
+GET http://localhost:8080/collaboration/api/workspaces/{projectId}/chat?limit=50
+Authorization: Bearer {{token}}
+```
+
+Send a message:
+
+```
+POST http://localhost:8080/collaboration/api/workspaces/{projectId}/chat
+Authorization: Bearer {{token}}
+Content-Type: application/json
+```
+
+```json
+{
+  "content": "I pushed the initial implementation."
+}
+```
+
+### 13.9 Whiteboard State
+
+```
+GET http://localhost:8080/collaboration/api/workspaces/{projectId}/whiteboard
+Authorization: Bearer {{token}}
+```
+
+Clear the whiteboard:
+
+```
+DELETE http://localhost:8080/collaboration/api/workspaces/{projectId}/whiteboard
+Authorization: Bearer {{token}}
+```
+
+### 13.10 Start and Stop the IDE Container
+
+Start Eclipse Theia for the project's workspace:
+
+```
+POST http://localhost:8080/collaboration/api/workspaces/{projectId}/theia/start
+Authorization: Bearer {{token}}
+```
+
+Check its state with `GET /collaboration/api/workspaces/{projectId}/theia`; stop it with `POST /collaboration/api/workspaces/{projectId}/theia/stop`. Starting Theia requires Docker to be available to the collaboration service.
+
+### 13.11 Execute a Terminal Command
+
+```
+POST http://localhost:8080/collaboration/api/workspaces/{projectId}/terminal/exec
+Authorization: Bearer {{token}}
+Content-Type: application/json
+```
+
+```json
+{
+  "command": "pwd"
+}
+```
+
+### 13.12 Real-Time WebSocket Connection
+
+The WebSocket endpoint is served directly by the collaboration service:
+
+```
+ws://localhost:8090/ws/workspace/{projectId}?token={{token}}
+```
+
+Connect with a valid JWT for a project member. The server responds with `CONNECTION_ACK` and the currently online user IDs. Send JSON messages with a `type` and `payload`; the server sets `userId` and `projectId` from the authenticated connection, so client-supplied identity values are not trusted.
+
+Example chat event:
+
+```json
+{
+  "type": "CHAT_MESSAGE",
+  "payload": {
+    "content": "Hello, team!"
+  }
+}
+```
+
+Example file-create event:
+
+```json
+{
+  "type": "FILE_CREATE",
+  "payload": {
+    "path": "src/new-file.js",
+    "content": "// Start here"
+  }
+}
+```
+
+Other event types include `WHITEBOARD_OBJECT_CREATE`, `WHITEBOARD_OBJECT_UPDATE`, `WHITEBOARD_OBJECT_DELETE`, `WHITEBOARD_CURSOR_MOVE`, `CODE_OPERATION`, `CODE_CURSOR_MOVE`, `JOIN_VOICE`, `LEAVE_VOICE`, `WEBRTC_OFFER`, `WEBRTC_ANSWER`, `WEBRTC_ICE_CANDIDATE`, and `HEARTBEAT`. Payload fields vary by event; consult `backend/collaboration-service/src/websocket/eventValidator.js` for the required fields. Chat, file operations, code document updates, and whiteboard changes are persisted; cursor movements, presence, voice signaling, and heartbeats are transient.
+
+---
+
 ## Compile Verification
 
-Both services compiled cleanly after all changes:
+Verified on 2026-10-06 from each service directory:
 
 ```
-profileservice  →  ./mvnw compile   exit code: 0  ✅
-projectservice  →  ./mvnw compile   exit code: 0  ✅
+profileservice  →  bash ./mvnw -q compile   exit code: 0  ✅
+projectservice  →  bash ./mvnw -q compile   exit code: 0  ✅
 ```
+
+Invoke the wrapper through `bash` in this checkout because `mvnw` does not have its executable bit set.
 
 > **Note:** After making these changes while services are already running, **restart both `profileservice` and `projectservice`** for the enriched responses to take effect.

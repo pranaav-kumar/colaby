@@ -5020,6 +5020,57 @@ body {
   position: relative;
 }
 
+/* Keep the immersive workspace's navigation rail fixed when the page enters
+   the dashboard's small-screen layout. The dashboard can use a horizontal
+   toolbar, but the workspace needs the remaining width for its canvas. */
+@media (max-width: 768px) {
+  .project-page-shell.is-workspace {
+    flex-direction: row;
+  }
+
+  .project-page-shell.is-workspace .project-sidebar {
+    flex: 0 0 54px;
+    width: 54px;
+    min-width: 54px;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 0;
+    border-right: 1px solid rgba(99, 102, 241, 0.16);
+    border-bottom: 0;
+  }
+
+  .project-page-shell.is-workspace .project-sidebar-views,
+  .project-page-shell.is-workspace .project-sidebar-nav {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .project-page-shell.is-workspace .project-sidebar-views {
+    padding: 0 0 10px;
+    border-right: 0;
+  }
+
+  .project-page-shell.is-workspace .project-sidebar-divider {
+    width: 30px;
+    height: 1px;
+    margin: 4px 0 10px;
+  }
+
+  .project-main-area.is-workspace .project-topbar {
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  .project-main-area.is-workspace .project-topbar-stats {
+    display: none;
+  }
+
+  .project-main-area.is-workspace .project-topbar-name {
+    max-width: clamp(100px, 24vw, 220px);
+  }
+}
+
 /* ══════════════════════════════════════════════════════════════
    VERSION CONTROL GRAPH (VCS) WORKSPACE STYLES
    ══════════════════════════════════════════════════════════════ */
