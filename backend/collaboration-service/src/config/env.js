@@ -1,4 +1,5 @@
 const path = require('path');
+const os = require('os');
 
 const serviceRoot = path.resolve(__dirname, '../..');
 require('dotenv').config({ path: path.join(serviceRoot, '.env') });
@@ -6,7 +7,8 @@ require('dotenv').config({ path: path.join(serviceRoot, '.env') });
 // Resolve relative workspace paths from the collaboration service directory,
 // not from whichever directory happened to launch Node. The Theia container,
 // file APIs, and terminal must all operate on this same directory.
-const configuredWorkspaceRoot = process.env.WORKSPACE_ROOT_DIR || './workspaces';
+const configuredWorkspaceRoot = process.env.WORKSPACE_ROOT_DIR ||
+  path.join(os.homedir(), '.local', 'share', 'colaby', 'workspaces');
 
 const config = {
   PORT: process.env.PORT || 8090,

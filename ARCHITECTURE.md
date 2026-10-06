@@ -299,7 +299,7 @@ All Spring JPA services read `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` and use 
 
 ### Collaboration data and workspace files
 
-The Node service connects to `MONGODB_URI`. Mongoose models include `Workspace`, `ChatMessage`, `WhiteboardDocument`, `CollaborationEvent`, `FileOperation`, `Snapshot`, and `CodeDocument`. Git workspace content lives on disk under `WORKSPACE_ROOT_DIR` (default resolves to `backend/collaboration-service/workspaces`), with workspace records holding paths/repository state. The service includes snapshot/replay and code-session logic, but do not assume all in-memory structures are durable: inspect the specific model/service path when changing persistence behavior.
+The Node service connects to `MONGODB_URI`. Mongoose models include `Workspace`, `ChatMessage`, `WhiteboardDocument`, `CollaborationEvent`, `FileOperation`, `Snapshot`, and `CodeDocument`. Git workspace content lives on disk under `WORKSPACE_ROOT_DIR` (default `~/.local/share/colaby/workspaces`), outside the source checkout, with workspace records holding paths/repository state. Existing workspace files are not migrated automatically when this path changes. The service includes snapshot/replay and code-session logic, but do not assume all in-memory structures are durable: inspect the specific model/service path when changing persistence behavior.
 
 ### Principal relationships
 

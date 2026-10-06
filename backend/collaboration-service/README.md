@@ -66,9 +66,11 @@ Required environment variables:
 | `PROJECT_SERVICE_KEY` | Random service-to-service secret; configure the same value for collaboration-service and project-service | *(required)* |
 | `JWT_SECRET` | JWT signing secret (shared with Auth Service) | *(required)* |
 | `NODE_ENV` | Environment | `development` |
-| `WORKSPACE_ROOT_DIR` | Base directory for cloned repos | `./workspaces` |
+| `WORKSPACE_ROOT_DIR` | Base directory for cloned repos | `~/.local/share/colaby/workspaces` |
 
 Generate `PROJECT_SERVICE_KEY` outside source control and provide it to both services through their runtime environment (or ignored local configuration). The example file intentionally leaves secrets blank. Spring service ports bind to loopback in the local configuration; deployments using separate hosts must enforce an equivalent private network boundary. The collaboration service authenticates bearer JWTs directly because browser and IDE-container clients connect to it.
+
+Project files are stored outside the source checkout by default, under the current user's local data directory. Set `WORKSPACE_ROOT_DIR` to a persistent mounted directory in deployments. Existing workspace files are not migrated automatically; move them manually if you need to preserve them when changing this path.
 
 ### Running
 
