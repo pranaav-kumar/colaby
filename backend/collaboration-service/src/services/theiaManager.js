@@ -622,6 +622,35 @@ async function injectCollabBridge(containerName, projectId) {
   }
 
   setupMonacoHooks();
+
+  // The collaboration service persists merged editor content to the mounted
+  // workspace. Theia sees that write as an external change and asks whether
+  // to overwrite the disk copy on the next save. In this live workspace the
+  // editor buffer is the collaborative source of truth, so accept only this
+  // specific file-conflict dialog; leave every other Theia confirmation alone.
+  function autoConfirmCollaborativeFileConflict() {
+    var dialogs = document.querySelectorAll('.dialogOverlay');
+    dialogs.forEach(function(dialog) {
+      var title = dialog.querySelector('.dialogTitle');
+      var message = dialog.querySelector('.dialogContent');
+      if (!title || !message) return;
+
+      var titleText = title.textContent.trim();
+      var messageText = message.textContent.trim();
+      if (!/^The file .+ has been changed on the file system\\.$/.test(titleText)) return;
+      if (!/^Do you want to overwrite the changes made to .+ on the file system\\?$/.test(messageText)) return;
+
+      var overwriteButton = dialog.querySelector('.dialogControl button.main');
+      if (!overwriteButton || overwriteButton.dataset.colabyAutoConfirmed) return;
+      overwriteButton.dataset.colabyAutoConfirmed = 'true';
+      console.info('[COLABY] Auto-confirming collaborative workspace file sync conflict');
+      overwriteButton.click();
+    });
+  }
+
+  var fileConflictObserver = new MutationObserver(autoConfirmCollaborativeFileConflict);
+  fileConflictObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+  autoConfirmCollaborativeFileConflict();
 })();
 </script>
 `;
