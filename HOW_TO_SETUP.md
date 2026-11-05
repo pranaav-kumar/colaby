@@ -89,6 +89,26 @@ The Vite development server uses `http://localhost:3000`; the frontend API clien
 
 ## 6. Start the services
 
+After completing steps 1–5, the repository includes a script that starts all services and waits for them to become reachable:
+
+```sh
+chmod +x run-colaby.sh
+./run-colaby.sh
+```
+
+It starts/reuses PostgreSQL and Redis via Docker, then launches Eureka, the Spring Boot services, Go collaboration service, API Gateway, and frontend. Logs are written to `.run/logs/` and process IDs to `.run/pids/`.
+
+Use these commands to manage the processes later:
+
+```sh
+./run-colaby.sh --status
+./run-colaby.sh --stop
+```
+
+`--stop` stops application processes but leaves the PostgreSQL and Redis containers running. Run `docker compose down` to stop the containers.
+
+To start services manually in separate terminals instead, use the commands below.
+
 Open a terminal for each command and leave it running. Start in this order so service discovery and service-to-service calls are ready:
 
 ```sh
