@@ -112,27 +112,27 @@ To start services manually in separate terminals instead, use the commands below
 Open a terminal for each command and leave it running. Start in this order so service discovery and service-to-service calls are ready:
 
 ```sh
-cd backend/discoveryservice && ./mvnw spring-boot:run
+cd backend/discoveryservice && bash ./mvnw spring-boot:run
 ```
 
 ```sh
-cd backend/userdetailsservice && ./mvnw spring-boot:run
+cd backend/userdetailsservice && bash ./mvnw spring-boot:run
 ```
 
 ```sh
-cd backend/projectservice && ./mvnw spring-boot:run
+cd backend/projectservice && bash ./mvnw spring-boot:run
 ```
 
 ```sh
-cd backend/authservice && ./mvnw spring-boot:run
+cd backend/authservice && bash ./mvnw spring-boot:run
 ```
 
 ```sh
-cd backend/communityservice && ./mvnw spring-boot:run
+cd backend/communityservice && bash ./mvnw spring-boot:run
 ```
 
 ```sh
-cd backend/profileservice && ./mvnw spring-boot:run
+cd backend/profileservice && bash ./mvnw spring-boot:run
 ```
 
 ```sh

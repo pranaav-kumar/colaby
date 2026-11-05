@@ -161,17 +161,17 @@ ensure_data_services() {
 ensure_data_services
 
 # Service registry and internal callers must be up before the gateway/frontend.
-start_service discovery backend/discoveryservice ./mvnw spring-boot:run
+start_service discovery backend/discoveryservice bash ./mvnw spring-boot:run
 wait_for_port discovery 8761
 
-start_service userdetails backend/userdetailsservice ./mvnw spring-boot:run
-start_service project backend/projectservice ./mvnw spring-boot:run
+start_service userdetails backend/userdetailsservice bash ./mvnw spring-boot:run
+start_service project backend/projectservice bash ./mvnw spring-boot:run
 wait_for_port userdetails 8082
 wait_for_port project 8084
 
-start_service auth backend/authservice ./mvnw spring-boot:run
-start_service community backend/communityservice ./mvnw spring-boot:run
-start_service profile backend/profileservice ./mvnw spring-boot:run
+start_service auth backend/authservice bash ./mvnw spring-boot:run
+start_service community backend/communityservice bash ./mvnw spring-boot:run
+start_service profile backend/profileservice bash ./mvnw spring-boot:run
 wait_for_port auth 8081
 wait_for_port community 8083
 wait_for_port profile 8085
@@ -179,7 +179,7 @@ wait_for_port profile 8085
 start_service collaboration backend/collaboration-service go run .
 wait_for_port collaboration 8090
 
-start_service gateway backend/apigateway ./mvnw spring-boot:run
+start_service gateway backend/apigateway bash ./mvnw spring-boot:run
 wait_for_port gateway 8080
 
 start_service frontend frontend npm run dev -- --host 0.0.0.0
