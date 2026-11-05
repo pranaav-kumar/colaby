@@ -1,5 +1,6 @@
 backend/apigateway/src/main/resources/application-local.properties
 backend/collaboration-service/workspaces/
+backend/collaboration-service/node_modules/
 
 # Local environment variables and credentials (keep example templates tracked).
 .env

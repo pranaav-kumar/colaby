@@ -1,0 +1,238 @@
+
+<script id="colaby-theia-bridge">
+(function() {
+  console.log('[COLLAB-BRIDGE] VERSION = 2026-09-09-PROD-02');
+
+  var allowedParentOrigins = __COLABY_ALLOWED_PARENT_ORIGINS__;
+  var colabyParentOrigin = '';
+  try {
+    var requestedParentOrigin = new URLSearchParams(window.location.search).get('colabyParentOrigin');
+    if (requestedParentOrigin) {
+      var parsedParentOrigin = new URL(requestedParentOrigin).origin;
+      if (allowedParentOrigins.indexOf(parsedParentOrigin) !== -1) colabyParentOrigin = parsedParentOrigin;
+    }
+  } catch (_) {}
+  function postToParent(message) {
+    if (colabyParentOrigin) window.parent.postMessage(message, colabyParentOrigin);
+  }
+
+  function normalizeCleanPath(p) {
+    if (!p) return '';
+    var s = (typeof p === 'object' && p.path) ? p.path : String(p);
+    s = s.split('\\\\').join('/');
+    if (s.indexOf('file://') === 0) { s = s.substring(7); }
+    while (s.charAt(0) === '/') { s = s.substring(1); }
+    if (s.indexOf('home/project') === 0) { s = s.substring(12); }
+    while (s.charAt(0) === '/') { s = s.substring(1); }
+    return s;
+  }
+  function getCleanPath(modelUri) { return normalizeCleanPath(modelUri); }
+
+  var editorDecorations = new Map();
+  var injectedStyles    = new Set();
+  var modelBindings     = new Map();
+
+  function injectUserStyle(cleanId, color) {
+    if (injectedStyles.has(cleanId)) return;
+    injectedStyles.add(cleanId);
+    var style = document.createElement('style');
+    style.id = 'colaby-style-' + cleanId;
+    style.textContent = [
+      '.colaby-caret-line-' + cleanId + ' { border-left:2px solid ' + color + ' !important; margin-left:-1px; height:100%; display:inline-block; }',
+      '.colaby-label-' + cleanId + ' { background-color:' + color + ' !important; color:#fff !important; font-size:10px !important; font-weight:600 !important; border-radius:3px !important; padding:1px 4px !important; margin-left:2px !important; vertical-align:super !important; pointer-events:none !important; line-height:12px !important; display:inline-block !important; box-shadow:0 1px 3px rgba(0,0,0,0.3) !important; }',
+      '.colaby-sel-' + cleanId + ' { background-color:' + color + '33 !important; }'
+    ].join('\\n');
+    document.head.appendChild(style);
+  }
+
+  function updateEditorPresence(editor, collaborators) {
+    if (!editor || !editor.getModel) return;
+    var model = editor.getModel();
+    if (!model) return;
+    var currentPath = getCleanPath(model.uri);
+    if (!editorDecorations.has(editor)) { editorDecorations.set(editor, new Map()); }
+    var userDecs = editorDecorations.get(editor);
+    var activeUserIds = new Set();
+    if (collaborators) {
+      Object.keys(collaborators).forEach(function(uId) {
+        var collab = collaborators[uId];
+        if (!collab || collab.filePath !== currentPath) return;
+        activeUserIds.add(uId);
+        var cleanId = uId.replace(/[^a-zA-Z0-9]/g,'_');
+        var color = collab.color || '#22D3EE';
+        var userName = collab.userName || 'User';
+        injectUserStyle(cleanId, color);
+        var newDecs = [];
+        if (collab.position && collab.position.lineNumber) {
+          var line = collab.position.lineNumber, col = collab.position.column || 1;
+          newDecs.push({ range: new window.monaco.Range(line,col,line,col), options: { className:'colaby-remote-caret colaby-caret-'+cleanId, beforeContentClassName:'colaby-caret-line colaby-caret-line-'+cleanId, hoverMessage:{value:'**'+userName+'** is editing here'} } });
+          newDecs.push({ range: new window.monaco.Range(line,col,line,col), options: { after:{ content:'\\u00A0'+userName+'\\u00A0', inlineClassName:'colaby-label-'+cleanId } } });
+        }
+        if (collab.selection && collab.selection.startLineNumber) {
+          var sel = collab.selection;
+          if (sel.startLineNumber !== sel.endLineNumber || sel.startColumn !== sel.endColumn) {
+            newDecs.push({ range: new window.monaco.Range(sel.startLineNumber,sel.startColumn,sel.endLineNumber,sel.endColumn), options:{ className:'colaby-remote-selection colaby-sel-'+cleanId } });
+          }
+        }
+        var oldDecIds = userDecs.get(uId) || [];
+        userDecs.set(uId, editor.deltaDecorations(oldDecIds, newDecs));
+      });
+    }
+    userDecs.forEach(function(oldIds,uId) {
+      if (!activeUserIds.has(uId)) { editor.deltaDecorations(oldIds,[]); userDecs.delete(uId); }
+    });
+  }
+
+  function setupMonacoHooks() {
+    if (!window.monaco || !window.monaco.editor || typeof window.monaco.editor.getModels !== 'function') {
+      setTimeout(setupMonacoHooks, 200); return;
+    }
+
+    function hookModel(model) {
+      if (!model || (typeof model.isDisposed === 'function' && model.isDisposed())) return;
+      var rawUri    = model.uri ? model.uri.toString() : '';
+      var canonical = getCleanPath(model.uri);
+      if (!canonical || rawUri.startsWith('output:') || rawUri.startsWith('vscode:')) return;
+
+      var existingBinding = modelBindings.get(canonical);
+      if (existingBinding && existingBinding.model === model && (!model.isDisposed || !model.isDisposed())) return;
+      if (existingBinding && existingBinding.listener && typeof existingBinding.listener.dispose === 'function') {
+        try { existingBinding.listener.dispose(); } catch(e) {}
+      }
+
+      console.log('[COLLAB-FILE] MODEL_DISCOVERED', { workspaceId: window.__COLABY_PROJECT_ID||'', rawFilePath:rawUri, canonicalFilePath:canonical, roomId:(window.__COLABY_PROJECT_ID||'')+':'+canonical });
+
+      var initialContent = typeof model.getValue === 'function' ? model.getValue() : '';
+      postToParent({ type:'COLABY_THEIA_FILE_OPENED', filePath:canonical, content:initialContent, modelUri:rawUri, modelVersionId:typeof model.getVersionId==='function'?model.getVersionId():1 });
+
+      var contentListener = model.onDidChangeContent(function(e) {
+        if (model._isApplyingCollabRemote) return;
+        if (typeof model.isDisposed === 'function' && model.isDisposed()) return;
+        var newContent = model.getValue();
+        var change = e.changes && e.changes[0];
+        var updateId = 'upd-'+(window.__COLABY_USER_ID||'user')+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
+        var uId = window.__COLABY_USER_ID || 'user';
+        var mVer = typeof model.getVersionId === 'function' ? model.getVersionId() : 1;
+        console.log('[COLAB-LIVE] A_LOCAL_EDIT', { updateId:updateId, userId:uId, filePath:canonical, canonicalPath:canonical, ydocKey:(window.__COLABY_PROJECT_ID||'')+':'+canonical, modelUri:rawUri, modelVersionId:mVer, timestamp:new Date().toISOString() });
+        postToParent({
+          type:'COLABY_THEIA_EDIT', filePath:canonical, content:newContent,
+          updateId:updateId, modelUri:rawUri, modelVersionId:mVer,
+          operation: change ? { range:{ startLineNumber:change.range.startLineNumber, startColumn:change.range.startColumn, endLineNumber:change.range.endLineNumber, endColumn:change.range.endColumn }, rangeOffset:change.rangeOffset, rangeLength:change.rangeLength, text:change.text } : null
+        });
+      });
+
+      if (typeof model.onWillDispose === 'function') {
+        model.onWillDispose(function() {
+          if (contentListener && typeof contentListener.dispose === 'function') { try { contentListener.dispose(); } catch(e) {} }
+          if (modelBindings.get(canonical) && modelBindings.get(canonical).model === model) { modelBindings.delete(canonical); }
+        });
+      }
+
+      modelBindings.set(canonical, { model:model, modelUri:rawUri, modelId:typeof model.id==='string'?model.id:rawUri, listener:contentListener, boundAt:Date.now() });
+      console.log('[COLLAB-FILE] MODEL_BOUND', { canonicalPath:'/'+canonical, modelUri:rawUri, status:'BOUND' });
+    }
+
+    window.monaco.editor.onDidCreateModel(hookModel);
+    window.monaco.editor.getModels().forEach(hookModel);
+
+    var boundEditors = new WeakSet();
+    function hookEditor(editor) {
+      if (!editor || boundEditors.has(editor)) return;
+      boundEditors.add(editor);
+      editor.onDidChangeModel(function() {
+        var m = editor.getModel(); if (!m) return;
+        hookModel(m);
+        postToParent({ type:'COLABY_THEIA_FILE_OPENED', filePath:getCleanPath(m.uri), content:typeof m.getValue==='function'?m.getValue():'' });
+      });
+      editor.onDidChangeCursorPosition(function(e) {
+        var m = editor.getModel(); if (!m) return;
+        postToParent({ type:'COLABY_THEIA_CURSOR', filePath:getCleanPath(m.uri), position:e.position });
+      });
+      editor.onDidChangeCursorSelection(function(e) {
+        var m = editor.getModel(); if (!m) return;
+        postToParent({ type:'COLABY_THEIA_SELECTION', filePath:getCleanPath(m.uri), selection:e.selection });
+      });
+      editor.onDidDispose(function() { editorDecorations.delete(editor); boundEditors.delete(editor); });
+    }
+    if (window.monaco.editor.onDidCreateEditor) { window.monaco.editor.onDidCreateEditor(hookEditor); }
+    if (window.monaco.editor.getEditors) { window.monaco.editor.getEditors().forEach(hookEditor); }
+
+    window.addEventListener('message', function(event) {
+      if (!colabyParentOrigin || event.source !== window.parent || event.origin !== colabyParentOrigin) return;
+      var msg = event.data;
+      if (!msg || !msg.type) return;
+
+      if (msg.type === 'COLABY_USER_ROLE') {
+        window.__COLABY_IS_CREATOR = (msg.role === 'CREATOR' || msg.isCreator === true);
+        if (msg.projectId) window.__COLABY_PROJECT_ID = msg.projectId;
+        if (msg.userId)    window.__COLABY_USER_ID    = msg.userId;
+
+      } else if (msg.type === 'COLABY_REMOTE_PRESENCE') {
+        var editors = window.monaco.editor.getEditors ? window.monaco.editor.getEditors() : [];
+        editors.forEach(function(ed) { updateEditorPresence(ed, msg.collaborators); });
+
+      } else if (msg.type === 'COLABY_REMOTE_EDIT') {
+        var cleanTarget = normalizeCleanPath(msg.filePath);
+        var updateId    = msg.updateId || 'unknown';
+        var uId         = window.__COLABY_USER_ID || msg.userId || 'user';
+        var models = window.monaco.editor.getModels();
+        var targetModel = null;
+        for (var i = 0; i < models.length; i++) {
+          var m = models[i];
+          if (typeof m.isDisposed === 'function' && m.isDisposed()) continue;
+          if (normalizeCleanPath(m.uri) === cleanTarget) { targetModel = m; break; }
+        }
+        if (!targetModel && modelBindings.has(cleanTarget)) {
+          var b = modelBindings.get(cleanTarget);
+          if (b && b.model && (!b.model.isDisposed || !b.model.isDisposed())) { targetModel = b.model; }
+        }
+        if (targetModel) {
+          console.log('[COLAB-LIVE] B_TARGET_MODEL_FOUND', { updateId:updateId, userId:uId, filePath:cleanTarget, canonicalPath:'/'+cleanTarget, timestamp:new Date().toISOString() });
+          targetModel._isApplyingCollabRemote = true;
+          try {
+            if (targetModel.getValue() !== msg.content) {
+              if (typeof targetModel.applyEdits === 'function' && typeof targetModel.getFullModelRange === 'function') {
+                targetModel.applyEdits([{ range:targetModel.getFullModelRange(), text:msg.content, forceMoveMarkers:true }]);
+              } else { targetModel.setValue(msg.content); }
+            }
+          } catch(e) { targetModel.setValue(msg.content); }
+          finally { targetModel._isApplyingCollabRemote = false; }
+        } else {
+          console.warn('[COLAB-LIVE] B_TARGET_MODEL_NOT_FOUND', { updateId:updateId, canonicalPath:cleanTarget, openModelCount:models.length });
+        }
+      }
+    });
+  }
+
+  setupMonacoHooks();
+
+  // The collaboration service persists merged editor content to the mounted
+  // workspace. Theia sees that write as an external change and asks whether
+  // to overwrite the disk copy on the next save. In this live workspace the
+  // editor buffer is the collaborative source of truth, so accept only this
+  // specific file-conflict dialog; leave every other Theia confirmation alone.
+  function autoConfirmCollaborativeFileConflict() {
+    var dialogs = document.querySelectorAll('.dialogOverlay');
+    dialogs.forEach(function(dialog) {
+      var title = dialog.querySelector('.dialogTitle');
+      var message = dialog.querySelector('.dialogContent');
+      if (!title || !message) return;
+
+      var titleText = title.textContent.trim();
+      var messageText = message.textContent.trim();
+      if (!/^The file .+ has been changed on the file system\\.$/.test(titleText)) return;
+      if (!/^Do you want to overwrite the changes made to .+ on the file system\\?$/.test(messageText)) return;
+
+      var overwriteButton = dialog.querySelector('.dialogControl button.main');
+      if (!overwriteButton || overwriteButton.dataset.colabyAutoConfirmed) return;
+      overwriteButton.dataset.colabyAutoConfirmed = 'true';
+      console.info('[COLABY] Auto-confirming collaborative workspace file sync conflict');
+      overwriteButton.click();
+    });
+  }
+
+  var fileConflictObserver = new MutationObserver(autoConfirmCollaborativeFileConflict);
+  fileConflictObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+  autoConfirmCollaborativeFileConflict();
+})();
+</script>

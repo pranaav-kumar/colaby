@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.projectservice.dto.MemberResponse;
+import com.example.projectservice.dto.InternalProjectResponse;
 import com.example.projectservice.service.ProjectService;
 
 /**
@@ -53,5 +54,22 @@ public class InternalProjectController {
         // We pass a dummy UUID that won't restrict results since this is a trusted call
         List<MemberResponse> members = projectService.getMembersInternal(projectId);
         return ResponseEntity.ok(members);
+    }
+
+    @GetMapping("/{projectId}")
+    public ResponseEntity<InternalProjectResponse> getProjectInternal(
+            @PathVariable UUID projectId,
+            @RequestHeader(value = "X-Service-Key", required = false) String serviceKey) {
+        if (!isValidServiceKey(serviceKey)) {
+            return ResponseEntity.status(403).build();
+        }
+        return ResponseEntity.ok(projectService.getProjectInternal(projectId));
+    }
+
+    private boolean isValidServiceKey(String serviceKey) {
+        return serviceKey != null && !serviceKey.isBlank() && configuredServiceKey != null
+                && !configuredServiceKey.isBlank() && MessageDigest.isEqual(
+                        configuredServiceKey.getBytes(StandardCharsets.UTF_8),
+                        serviceKey.getBytes(StandardCharsets.UTF_8));
     }
 }

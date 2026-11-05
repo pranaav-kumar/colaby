@@ -16,6 +16,7 @@ export const getFileContent = (projectId, path) => api.get(`${COLLAB_PREFIX}/${p
 export const saveFileContent = (projectId, path, content) => api.post(`${COLLAB_PREFIX}/${projectId}/file`, { path, content });
 export const performFileOperation = (projectId, operation) => api.post(`${COLLAB_PREFIX}/${projectId}/files/operation`, operation);
 export const getChatHistory = (projectId, params) => api.get(`${COLLAB_PREFIX}/${projectId}/chat`, { params });
+export const sendChatMessage = (projectId, content) => api.post(`${COLLAB_PREFIX}/${projectId}/chat`, { content });
 export const getWhiteboardState = (projectId) => api.get(`${COLLAB_PREFIX}/${projectId}/whiteboard`);
 export const clearWhiteboardState = (projectId) => api.delete(`${COLLAB_PREFIX}/${projectId}/whiteboard`);
 export const getWorkspaceMembers = (projectId) => api.get(`${COLLAB_PREFIX}/${projectId}/members`);

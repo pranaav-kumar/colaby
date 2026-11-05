@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.projectservice.client.UserLookupClient;
 import com.example.projectservice.dto.CreateProjectRequest;
+import com.example.projectservice.dto.InternalProjectResponse;
 import com.example.projectservice.dto.MemberResponse;
 import com.example.projectservice.dto.ProjectResponse;
 import com.example.projectservice.dto.UpdateProjectRequest;
@@ -166,6 +167,13 @@ public class ProjectService {
                     );
                 })
                 .toList();
+    }
+
+    /** Internal project details used by trusted services, protected by the controller's service key. */
+    @Transactional(readOnly = true)
+    public InternalProjectResponse getProjectInternal(UUID projectId) {
+        Project project = findProjectOrThrow(projectId);
+        return new InternalProjectResponse(project.getId(), project.getGithubRepoUrl());
     }
 
     // ---- Package-private helpers used by other services ----

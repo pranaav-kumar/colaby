@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAuth } from '../../context/useAuth';
-import { getChatHistory } from '../../api/collaborationApi';
+import { getChatHistory, sendChatMessage } from '../../api/collaborationApi';
 
 export default function TeamChat() {
   const { projectId, projectInfo, wsConnection } = useWorkspace();
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [sendError, setSendError] = useState('');
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -23,7 +24,15 @@ export default function TeamChat() {
               ? res.data.content 
               : [];
         if (isMounted) {
-          setMessages([...list].reverse());
+          const history = [...list].reverse();
+          setMessages((current) => {
+            const historyIds = new Set(history.map((message) => message.messageId || message.id).filter(Boolean));
+            const newer = current.filter((message) => {
+              const id = message.messageId || message.id;
+              return !id || !historyIds.has(id);
+            });
+            return [...history, ...newer];
+          });
         }
       } catch (err) {
         console.error('Failed to load chat history', err);
@@ -70,13 +79,24 @@ export default function TeamChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
     const trimmed = input.trim();
-    if (!trimmed || !wsConnection?.isConnected) return;
-    
-    wsConnection.sendMessage('CHAT_MESSAGE', { content: trimmed });
-    setInput('');
+    if (!trimmed) return;
+    setSendError('');
+    try {
+      const response = await sendChatMessage(projectId, trimmed);
+      const saved = response.data?.data || response.data;
+      if (saved?.content) {
+        setMessages((current) => current.some((message) => (message.messageId || message.id) === saved.messageId)
+          ? current
+          : [...current, saved]);
+      }
+      setInput('');
+    } catch (err) {
+      console.error('Failed to send chat message', err);
+      setSendError(err.response?.data?.message || 'Message could not be sent. Please try again.');
+    }
   };
 
   const currentUserId = user?.userId ? String(user.userId).toLowerCase() : '';
@@ -134,20 +154,20 @@ export default function TeamChat() {
       </div>
 
       {/* Chat Input */}
+      {sendError && <div className="chat-send-error" role="alert">{sendError}</div>}
       <form className="chat-input-area" onSubmit={handleSend}>
         <input 
           type="text" 
           className="chat-input-field" 
           value={input} 
           onChange={e => setInput(e.target.value)} 
-          placeholder={wsConnection?.isConnected ? "Send a message to team..." : "Connecting to workspace..."}
-          disabled={!wsConnection?.isConnected}
+          placeholder="Send a message to team..."
           autoFocus
         />
         <button
           type="submit"
           className="btn-primary chat-send-btn"
-          disabled={!wsConnection?.isConnected || !input.trim()}
+          disabled={!input.trim()}
         >
           Send
         </button>

@@ -4,7 +4,7 @@ This document describes the implementation currently present in this repository.
 
 ## 1. Product outline
 
-Colaby is a collaboration application with authenticated user profiles and friendships, communities with posts and threaded comments, project management, and real-time project workspaces. The browser application is a React single-page app. Most JSON APIs are routed through a Spring Cloud Gateway. Workspace APIs and live collaboration are served by a separate Node.js service.
+Colaby is a collaboration application with authenticated user profiles and friendships, communities with posts and threaded comments, project management, and real-time project workspaces. The browser application is a React single-page app. Most JSON APIs are routed through a Spring Cloud Gateway. Workspace APIs and live collaboration are served by a separate Go service.
 
 ## 2. System architecture
 
@@ -18,9 +18,8 @@ flowchart LR
     Community[Community service :8083]
     Project[Project service :8084]
     Profile[Profile / friends :8085]
-    Collab[Node collaboration service :8090\nHTTP + WebSocket + terminal PTY]
+    Collab[Go collaboration service :8090\nnet/http + WebSocket + terminal PTY]
     SQL[(PostgreSQL\nDB_URL)]
-    Mongo[(MongoDB\ncollaboration state)]
     Redis[(Redis\nGateway rate limits)]
     Theia[Theia IDE containers]
     Git[Git remotes]
@@ -50,7 +49,7 @@ flowchart LR
     Community --> SQL
     Project --> SQL
     Profile --> SQL
-    Collab --> Mongo
+    Collab --> SQL
     Collab --> Theia
     Collab --> Git
 ```
@@ -67,16 +66,16 @@ flowchart LR
 | Community service | Spring MVC, JPA | `http://localhost:8083` | Communities, membership, posts, comments, votes |
 | Project service | Spring MVC, JPA | `http://localhost:8084` | Projects, members, invitations, tasks, docs, events, notes and folders |
 | Profile service | Spring MVC, JPA | `http://localhost:8085` | Friend requests and accepted friendships |
-| Collaboration service | Express, Mongoose, `ws`, Yjs, `node-pty` | `http://localhost:8090` | Project workspace files, chat, whiteboard, realtime events, code sync, terminals, and Theia lifecycle |
+| Collaboration service | Go `net/http`, Gorilla WebSocket, pgx, PTY | `http://localhost:8090` | Project workspace files, chat, whiteboard, realtime events, code sync, terminals, and Theia lifecycle |
 
-The Spring services declare `server.address=127.0.0.1` in their default properties. The Node service listens on its configured `PORT` (default 8090). The collaboration service is not Eureka registered: the gateway forwards `/collaboration/**` to `http://localhost:8090` directly.
+The Spring services declare `server.address=127.0.0.1` in their default properties. The Go service listens on its configured `PORT` (default 8090). The collaboration service is not Eureka registered: the gateway forwards `/collaboration/**` to `http://localhost:8090` directly.
 
 ## 3. Request, identity and access flow
 
 1. The frontend stores `accessToken` and `refreshToken` in browser local storage. Its shared Axios client adds `Authorization: Bearer <accessToken>` to JSON API requests and attempts token refresh after an authorization failure. Collaboration's direct Axios client also adds the access token.
 2. Gateway `/auth/**` requests are exempt from its JWT global filter. Other routed requests require a valid signed JWT whose subject parses as a UUID.
 3. The gateway removes any client-provided `X-User-Id` and `X-UserId`, then sets `X-User-Id` from the verified token subject. Spring business controllers use that header as the caller identity; clients should not set it themselves.
-4. The Node collaboration service independently verifies the bearer JWT. Workspace HTTP routes additionally check that the authenticated user is a project member by calling the Project Service internal API with `X-Service-Key`.
+4. The Go collaboration service independently verifies the bearer JWT. Workspace HTTP routes additionally check that the authenticated user is a project member by calling the Project Service internal API with `X-Service-Key`.
 5. Workspace WebSocket upgrades verify the JWT and project membership before accepting the socket. A connection is put into a room keyed by project ID. The terminal PTY uses a separate project-scoped token and also checks membership.
 
 The gateway's Spring Security chain permits exchanges at its Spring Security layer; the custom global JWT filter is the actual gateway authentication check. The auth service has a JWT filter but authorizes all requests at its Spring Security rules. Service deployment boundaries should therefore be controlled so that internal service ports are not treated as public API entry points.
@@ -221,7 +220,7 @@ Project docs and events have stricter creator/member rules than notes: any proje
 
 ### Collaboration workspace HTTP (`collaboration-service`)
 
-The service mounts the same workspace router at both `/collaboration/api/workspaces` and `/api/workspaces`. The first is exposed through the gateway; the second is direct-service access. In this table `<base>` means either of those path prefixes. Workspace routes require a valid bearer JWT plus membership in the project. The Node service responds with `{ success, data }` for most workspace operations.
+The service mounts the same workspace router at both `/collaboration/api/workspaces` and `/api/workspaces`. The first is exposed through the gateway; the second is direct-service access. In this table `<base>` means either of those path prefixes. Workspace routes require a valid bearer JWT plus membership in the project. The Go service responds with `{ success, data }` for most workspace operations.
 
 | Method | Path | Purpose / payload notes |
 |---|---|---|
@@ -244,9 +243,9 @@ The service mounts the same workspace router at both `/collaboration/api/workspa
 | POST | `<base>/{projectId}/theia/stop` | Stop IDE |
 | POST | `<base>/{projectId}/terminal/exec` | Execute a command; body `{ command }` |
 | GET | `<base>/{projectId}/terminal-token` | Issue a terminal-scoped JWT for PTY WebSocket connection |
-| GET | `/health` | Node service health JSON; direct service path, not covered by gateway `/collaboration/**` route |
+| GET | `/health` | Go service and PostgreSQL health JSON; direct service path, not covered by gateway `/collaboration/**` route |
 
-The frontend uses the gateway prefix for ordinary workspace operations (`/collaboration/api/workspaces/...`), calls direct port 8090 for clone and terminal command execution, and falls back to direct service for Theia/token operations on network, 401, or 5xx errors. The API gateway route forwards `/collaboration/**` to port 8090 without a configured prefix rewrite.
+The frontend uses the gateway prefix for ordinary workspace operations (`/collaboration/api/workspaces/...`), calls direct port 8090 for clone and terminal command execution, and falls back to direct service for Theia/token operations on network, 401, or 5xx errors. The IDE section starts Theia on first open; Docker pulls the image if needed, and the API reports `starting` while the container boots. The API gateway route forwards `/collaboration/**` to port 8090 without a configured prefix rewrite.
 
 ### Service-to-service endpoints (not browser APIs)
 
@@ -262,7 +261,7 @@ The internal Project endpoint is on the Project Service port, not a gateway rout
 
 ### Workspace collaboration socket
 
-The frontend currently connects to `ws://localhost:8090/ws/workspace/{projectId}?token={accessToken}`. The Node upgrade handler accepts a project ID from the final URL path segment, so this path works even though the server does not check a fixed `/ws/workspace` prefix. Production deployments must provide a reachable `wss://` URL through corresponding frontend configuration/code.
+The frontend currently connects to `ws://localhost:8090/ws/workspace/{projectId}?token={accessToken}`. The Go WebSocket handler accepts this workspace path and verifies the signed JWT and project membership before upgrading. Production deployments must provide a reachable `wss://` URL through corresponding frontend configuration/code.
 
 Messages are JSON objects with a `type` string and optional `payload`. The server overwrites payload `userId` and `projectId` with authenticated connection values. On connection, server emits `CONNECTION_ACK` with online users and broadcasts `USER_JOINED`; on disconnect it may emit voice state and `USER_LEFT`. Heartbeats use `HEARTBEAT` and `HEARTBEAT_ACK`.
 
@@ -274,10 +273,10 @@ Implemented event families (`src/websocket/eventTypes.js`):
 | Chat | `CHAT_MESSAGE`, `CHAT_HISTORY` | Chat messages persist through Chat Service and broadcast to the project room |
 | Whiteboard | `WHITEBOARD_OBJECT_CREATE`, `WHITEBOARD_OBJECT_UPDATE`, `WHITEBOARD_OBJECT_DELETE`, `WHITEBOARD_CLEAR`, `WHITEBOARD_STATE_SYNC`, `WHITEBOARD_CURSOR_MOVE` | Mutations update saved whiteboard state; cursors are ephemeral |
 | Filesystem | `FILE_CREATE`, `FILE_DELETE`, `FILE_RENAME`, `FILE_MOVE`, `FILE_SAVE`, `FOLDER_CREATE`, `FOLDER_DELETE`, `FOLDER_RENAME`, `FOLDER_MOVE`, `WORKSPACE_INITIALIZED`, `WORKSPACE_SYNC` | Tree operations run through filesystem manager / tree CRDT; selected operations are persisted as collaboration events |
-| Code editing | `CODE_OPERATION`, `CODE_SYNC`, `CODE_CURSOR_MOVE`, `CODE_SELECTION_CHANGE` | Yjs-backed document sessions; cursor/selection broadcasts are ephemeral |
+| Code editing | `CODE_OPERATION`, `CODE_SYNC`, `CODE_CURSOR_MOVE`, `CODE_SELECTION_CHANGE` | Persisted opaque Yjs update history replayed to joining clients; cursor/selection broadcasts are ephemeral |
 | Voice signaling | `JOIN_VOICE`, `LEAVE_VOICE`, `WEBRTC_OFFER`, `WEBRTC_ANSWER`, `WEBRTC_ICE_CANDIDATE`, `VOICE_STATE`, `VOICE_MUTE_STATE` | Signaling relays WebRTC negotiation; media is peer-to-peer rather than server audio transport |
 
-The authoritative payload schemas and per-event validation are in `eventValidator.js`; message names alone do not guarantee that every declared event has a dedicated handler. `eventRouter.js` currently uses a placeholder rate limiter that always returns false, despite a separate rate limiter module existing in the service.
+The Go service validates WebSocket event payloads in `websocket.go`. Message names alone do not guarantee that every event has the same persistence behavior; cursors, presence, voice signaling, and heartbeats are transient.
 
 ### Terminal PTY socket
 
@@ -299,7 +298,7 @@ All Spring JPA services read `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` and use 
 
 ### Collaboration data and workspace files
 
-The Node service connects to `MONGODB_URI`. Mongoose models include `Workspace`, `ChatMessage`, `WhiteboardDocument`, `CollaborationEvent`, `FileOperation`, `Snapshot`, and `CodeDocument`. Git workspace content lives on disk under `WORKSPACE_ROOT_DIR` (default `~/.local/share/colaby/workspaces`), outside the source checkout, with workspace records holding paths/repository state. Existing workspace files are not migrated automatically when this path changes. The service includes snapshot/replay and code-session logic, but do not assume all in-memory structures are durable: inspect the specific model/service path when changing persistence behavior.
+The Go service stores collaboration metadata in PostgreSQL using the idempotent SQL schema in `backend/collaboration-service/migrations/001_init.sql`. Its tables cover workspaces, chat, whiteboards, file operations/nodes, code document snapshots and update history, collaboration events, and recovery snapshots. Git workspace content remains on disk under `WORKSPACE_ROOT_DIR` (default `~/.local/share/colaby/workspaces`), outside the source checkout. Existing MongoDB data is not imported automatically. Yjs update bytes are persisted and replayed to joining clients; browsers apply and merge updates, while the server treats CRDT payloads as opaque.
 
 ### Principal relationships
 
@@ -337,19 +336,19 @@ The diagram captures conceptual relationships from IDs and service behavior. Mos
 
 ### Project workspace authorization
 
-The browser enters `/workspace/{projectId}` after project selection. Workspace API and socket calls include the user's JWT. Collaboration validates the signature then asks Project Service whether the user is a member. The Node service calls Project Service's internal members endpoint with `X-Service-Key`; project access must succeed before files, chat, whiteboard, or the socket room are available.
+The browser enters `/workspace/{projectId}` after project selection. Workspace API and socket calls include the user's JWT. Collaboration validates the signature then asks Project Service whether the user is a member. The Go service calls Project Service's internal members endpoint with `X-Service-Key`; project access must succeed before files, chat, whiteboard, or the socket room are available.
 
 ### Live collaborative edits
 
-Code changes are sent as `CODE_OPERATION` events. Collaboration keys sessions by `{projectId}:{filePath}`, applies Yjs updates, then broadcasts to other room sockets. File tree operations pass through a Tree CRDT manager; chat and whiteboard updates go through their services. Awareness events such as cursors are broadcast without database persistence.
+Code changes are sent as `CODE_OPERATION` events. Collaboration keys documents by `{projectId}:{filePath}`, persists the opaque update bytes and latest text snapshot, and broadcasts updates to other room sockets. Joining clients replay stored Yjs updates and apply them locally. File tree operations update the workspace and are logged in PostgreSQL; chat and whiteboard updates are persisted. Awareness events such as cursors are broadcast without database persistence.
 
 ## 9. Local development and configuration
 
 ### Required services and tools
 
 - Java 21 and Maven wrappers for Spring services.
-- Node.js and npm for frontend and collaboration service. `node-pty` requires its native dependency install/build support.
-- PostgreSQL for Spring services, Redis for gateway request limiting, and MongoDB for collaboration service.
+- Node.js and npm for the frontend; Go 1.25+ for collaboration service.
+- PostgreSQL for Spring and collaboration services, and Redis for gateway request limiting.
 - Docker is used by Theia manager for IDE lifecycle; Git is required to clone repository workspaces.
 
 ### Configuration keys
@@ -359,13 +358,13 @@ Code changes are sent as `CODE_OPERATION` events. Collaboration keys sessions by
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Spring data services | PostgreSQL connection |
 | `SECRETKEY` | Gateway | HMAC JWT verification key; must match Auth Service signing key |
 | Auth signing secret | Auth Service local/config properties | Signs access and refresh tokens; coordinate with gateway secret |
-| `MONGODB_URI` | Collaboration | MongoDB connection; required |
-| `JWT_SECRET` | Collaboration | JWT verification/signing; must be compatible with auth tokens |
+| `DATABASE_URL` | Collaboration | PostgreSQL connection URL |
+| `JWT_SECRET` | Collaboration | JWT verification/signing; must match Auth Service |
 | `PROJECT_SERVICE_KEY` | Project + Collaboration | Shared secret for internal membership lookup |
 | `PROJECT_SERVICE_URL` | Collaboration | Direct Project Service URL (default example `http://localhost:8084`) |
 | `userdetailsservice.base-url` | Project/Profile | Direct user details lookup URL (default `http://localhost:8082`) |
 | `WORKSPACE_ROOT_DIR` | Collaboration | Root for cloned/initialized project workspaces |
-| `PORT` | Collaboration | Node HTTP/WebSocket port; defaults to 8090 |
+| `PORT` | Collaboration | Go HTTP/WebSocket port; defaults to 8090 |
 | `VITE_API_BASE_URL` | Frontend | Gateway URL; defaults to `http://localhost:8080` |
 | `VITE_COLLAB_DIRECT_URL` | Frontend | Direct collaboration URL; defaults to `http://localhost:8090` |
 | `VITE_WEBRTC_TURN_URLS`, `VITE_WEBRTC_TURN_USERNAME`, `VITE_WEBRTC_TURN_CREDENTIAL` | Frontend | Optional TURN relay configuration for WebRTC |
@@ -374,7 +373,7 @@ The `.env.example` files document only part of the configuration. `application-l
 
 ### Start commands
 
-Run infrastructure first (PostgreSQL, Redis, MongoDB), provide local environment values, and then start each service. Example commands from the repository root:
+Run infrastructure first (PostgreSQL and Redis), provide local environment values, and then start each service. Example commands from the repository root:
 
 ```bash
 # Eureka
@@ -385,22 +384,22 @@ cd backend/discoveryservice && ./mvnw spring-boot:run
 cd backend/userdetailsservice && ./mvnw spring-boot:run
 
 # Collaboration service
-cd backend/collaboration-service && npm install && npm run dev
+cd backend/collaboration-service && go run .
 
 # Frontend
 cd frontend && npm install && npm run dev
 ```
 
-Run services in separate terminals; the multi-line snippet shows representative invocations, not a single shell session. Gateway routes expect Eureka registration for Spring services. Collaboration requires `MONGODB_URI`, `PROJECT_SERVICE_KEY`, and `JWT_SECRET` before startup.
+Run services in separate terminals; the multi-line snippet shows representative invocations, not a single shell session. Gateway routes expect Eureka registration for Spring services. Collaboration requires `DATABASE_URL`, `PROJECT_SERVICE_KEY`, and `JWT_SECRET` before startup.
 
 ## 10. Health, errors, and operational notes
 
 - Gateway exposes Actuator `health` only and hides health details. Spring service actuator exposure also includes `health` where configured. Do not infer that every service has the same endpoint exposure without checking its properties.
-- Collaboration has `GET /health`, returning service status and timestamp.
-- Controller status codes explicitly include 201 for create operations and 204 for selected delete operations; other error bodies are service-specific. Community/Profile/Project have exception handlers; collaboration uses Express error middleware.
+- Collaboration has `GET /health`, returning service status, timestamp, and PostgreSQL health.
+- Controller status codes explicitly include 201 for create operations and 204 for selected delete operations; other error bodies are service-specific. Community/Profile/Project have exception handlers; collaboration uses Go JSON error middleware.
 - Gateway auth failures return 401 JSON with an `error` string. Rate limiting depends on Redis. Spring route discovery depends on Eureka.
 - Gateway response timeout defaults to 30 seconds, with longer overrides for Project (20 seconds) and collaboration (35 seconds); auth route is 30 seconds. Direct frontend requests bypass the gateway timeouts where used.
-- The Node service uses CORS for configured Theia parent origins on direct requests; when proxied, it detects forwarded/user headers and avoids adding duplicate CORS headers.
+- The Go service uses CORS for configured Theia parent origins on direct requests; when proxied, it detects forwarded/user headers and avoids adding duplicate CORS headers.
 
 ## 11. Repository map
 
@@ -416,13 +415,13 @@ backend/projectservice/             Projects and project planning modules
 backend/collaboration-service/      Workspace HTTP, WebSockets, persistence, IDE/terminal
 ```
 
-Within Spring services, the common shape is `controller → service → repository/entity`; DTOs are used for request/response boundaries. The collaboration service groups HTTP routes/controllers, domain services, Mongoose models, WebSocket transport/event routing, and collaboration algorithms under `src/`.
+Within Spring services, the common shape is `controller → service → repository/entity`; DTOs are used for request/response boundaries. The collaboration service uses Go HTTP handlers, PostgreSQL migrations, WebSocket transport/event routing, and workspace runtime helpers.
 
 ## 12. Known implementation boundaries to keep in mind
 
 - The gateway's route list, rather than controller existence alone, determines what is reachable through port 8080. Internal routes must be called directly by trusted services.
 - `GET /users/allprofiles` is authenticated by the gateway but returns all profile rows; the controller itself has no caller-specific filtering.
-- The Node workspace route is exposed both directly and through the gateway. Do not assume direct port 8090 is protected by gateway rate limiting or CORS behavior.
+- The Go workspace route is exposed both directly and through the gateway. Do not assume direct port 8090 is protected by gateway rate limiting or CORS behavior.
 - The frontend currently hardcodes local WebSocket host/port, while REST bases are configurable.
 - Spring services use `ddl-auto=update`; schema changes are not represented as versioned migrations in this repository.
 - This reference documents actual controller and route definitions; where a request DTO or validator defines detailed field constraints, use those source types as the final authority.

@@ -1,0 +1,35 @@
+#!/usr/bin/env node
+'use strict';
+const fs = require('fs');
+const token = '__COLABY_TERMINAL_TOKEN__';
+const projectId = process.env.COLABY_PROJECT_ID || fs.readFileSync('/tmp/colaby-project-id', 'utf8').trim();
+const terminalHost = '__COLABY_TERMINAL_HOST__';
+const terminalPort = __COLABY_TERMINAL_PORT__;
+const wsUrl = 'ws://' + terminalHost + ':' + terminalPort + '/terminal-pty?projectId=' + encodeURIComponent(projectId) + '&token=' + encodeURIComponent(token);
+let connected = false;
+const pendingInput = [];
+const ws = new WebSocket(wsUrl);
+const connectTimer = setTimeout(() => {
+  if (!connected) { process.stderr.write('\r\n[Colaby] Timed out connecting to the local terminal service.\r\n'); try { ws.close(); } catch (_) {} }
+}, 8000);
+ws.addEventListener('open', () => {
+  connected = true;
+  clearTimeout(connectTimer);
+  ws.send(JSON.stringify({ type: 'resize', cols: process.stdout.columns || 120, rows: process.stdout.rows || 30 }));
+  while (pendingInput.length && ws.readyState === 1) ws.send(JSON.stringify({ type: 'input', data: pendingInput.shift() }));
+});
+ws.addEventListener('message', event => {
+  try { const msg = JSON.parse(event.data); if (msg.type === 'output' && msg.data) process.stdout.write(msg.data); else if (msg.type === 'exit') process.exit(msg.code || 0); } catch (_) {}
+});
+ws.addEventListener('error', () => process.stderr.write('\r\n[Colaby] Cannot reach the local terminal service.\r\n'));
+ws.addEventListener('close', () => { if (!connected) process.stderr.write('\r\n[Colaby] The terminal connection closed before it was ready.\r\n'); process.exitCode = connected ? 0 : 1; process.exit(); });
+if (process.stdin.isTTY) { try { process.stdin.setRawMode(true); } catch (_) {} }
+process.stdin.resume();
+process.stdin.on('data', chunk => {
+  const data = chunk.toString();
+  if (connected && ws.readyState === 1) { try { ws.send(JSON.stringify({ type: 'input', data })); } catch (_) { pendingInput.push(data); } }
+  else if (pendingInput.length < 128) pendingInput.push(data);
+});
+process.on('SIGWINCH', () => { if (ws.readyState === 1) { try { ws.send(JSON.stringify({ type: 'resize', cols: process.stdout.columns || 80, rows: process.stdout.rows || 24 })); } catch (_) {} } });
+process.on('SIGTERM', () => { try { ws.close(1000); } catch (_) {} process.exit(0); });
+process.on('SIGHUP', () => { try { ws.close(1000); } catch (_) {} process.exit(0); });

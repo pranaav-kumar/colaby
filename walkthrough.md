@@ -1810,17 +1810,16 @@ const displayName = member.userName ?? `User (${member.userId.slice(0, 8)}...)`;
 
 # Phase 13 - Real-Time Collaboration Workspaces
 
-The collaboration service provides each project with a shared workspace for files, chat, whiteboards, collaborative code editing, voice signaling, and an IDE/terminal. It runs as a separate Node.js service on port `8090`; project membership is checked against Project Service. Create a project and join it (Phases 7-8) before making these requests.
+The collaboration service provides each project with a shared workspace for files, chat, whiteboards, collaborative code editing, voice signaling, and an IDE/terminal. It runs as a separate Go service on port `8090`; project membership is checked against Project Service. Create a project and join it (Phases 7-8) before making these requests.
 
 ## Setup
 
-Start MongoDB, Project Service, and the collaboration service. Configure the collaboration service using `backend/collaboration-service/.env.example`: set `MONGODB_URI`, `PROJECT_SERVICE_URL`, `PROJECT_SERVICE_KEY`, and `JWT_SECRET`. `PROJECT_SERVICE_KEY` must match the key configured in Project Service, and `JWT_SECRET` must match Auth Service. The default collaboration-service port is `8090`.
+Start PostgreSQL, Redis, Project Service, and the collaboration service. Configure the collaboration service using `backend/collaboration-service/.env.example`: set `DATABASE_URL`, `PROJECT_SERVICE_URL`, `PROJECT_SERVICE_KEY`, and `JWT_SECRET`. `PROJECT_SERVICE_KEY` must match the key configured in Project Service, and `JWT_SECRET` must match Auth Service. The default collaboration-service port is `8090`.
 
-From `backend/collaboration-service`, install the Node dependencies and start the service:
+From `backend/collaboration-service`, start the service:
 
 ```sh
-npm install
-npm start
+go run .
 ```
 
 REST calls through the gateway use this base path:
@@ -1976,7 +1975,7 @@ POST http://localhost:8080/collaboration/api/workspaces/{projectId}/theia/start
 Authorization: Bearer {{token}}
 ```
 
-Check its state with `GET /collaboration/api/workspaces/{projectId}/theia`; stop it with `POST /collaboration/api/workspaces/{projectId}/theia/stop`. Starting Theia requires Docker to be available to the collaboration service.
+The first start pulls the Theia image automatically if it is not already present. Start returns `starting` while Docker downloads and boots the IDE; poll `GET /collaboration/api/workspaces/{projectId}/theia` until it reports `ready` or `error`. Stop it with `POST /collaboration/api/workspaces/{projectId}/theia/stop`. Docker must be available to the collaboration service process through socket permissions or passwordless `sudo`.
 
 ### 13.11 Execute a Terminal Command
 
@@ -2025,7 +2024,7 @@ Example file-create event:
 }
 ```
 
-Other event types include `WHITEBOARD_OBJECT_CREATE`, `WHITEBOARD_OBJECT_UPDATE`, `WHITEBOARD_OBJECT_DELETE`, `WHITEBOARD_CURSOR_MOVE`, `CODE_OPERATION`, `CODE_CURSOR_MOVE`, `JOIN_VOICE`, `LEAVE_VOICE`, `WEBRTC_OFFER`, `WEBRTC_ANSWER`, `WEBRTC_ICE_CANDIDATE`, and `HEARTBEAT`. Payload fields vary by event; consult `backend/collaboration-service/src/websocket/eventValidator.js` for the required fields. Chat, file operations, code document updates, and whiteboard changes are persisted; cursor movements, presence, voice signaling, and heartbeats are transient.
+Other event types include `WHITEBOARD_OBJECT_CREATE`, `WHITEBOARD_OBJECT_UPDATE`, `WHITEBOARD_OBJECT_DELETE`, `WHITEBOARD_CURSOR_MOVE`, `CODE_OPERATION`, `CODE_CURSOR_MOVE`, `JOIN_VOICE`, `LEAVE_VOICE`, `WEBRTC_OFFER`, `WEBRTC_ANSWER`, `WEBRTC_ICE_CANDIDATE`, and `HEARTBEAT`. Payload fields vary by event. Chat, file operations, Yjs update history and code text snapshots, and whiteboard changes are persisted; cursor movements, presence, voice signaling, and heartbeats are transient. The Go service treats Yjs updates as opaque bytes and replays them for the browser clients to apply.
 
 ---
 

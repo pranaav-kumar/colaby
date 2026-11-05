@@ -167,6 +167,14 @@ export default function TheiaIDE() {
           const current = res?.data?.data || res?.data;
           if (!mountedRef.current) return;
           if (current?.status === 'ready') {
+            const readyPort = current.port || port;
+            if (readyPort !== port) {
+              setTheiaPort(readyPort);
+              const readyUrl = new URL(`http://localhost:${readyPort}/`);
+              readyUrl.searchParams.set('colabyParentOrigin', window.location.origin);
+              readyUrl.hash = '/home/project';
+              setTheiaUrl(readyUrl.toString());
+            }
             setBootStep(4);
             setTheiaStatus('ready');
             clearInterval(pollTimerRef.current);
@@ -642,15 +650,37 @@ export default function TheiaIDE() {
     });
 
     const unsubSync = wsConnection.subscribe('CODE_SYNC', (payload) => {
-      if (!payload?.filePath || !payload?.encodedState) return;
+      if (!payload?.filePath) return;
       const canonical = normalizeFilePath(payload.filePath);
       const entry = getOrCreateYDoc(canonical);
       if (!entry || entry.isDisposed) return;
       const { doc, ytext } = entry;
       try {
-        Y.applyUpdate(doc, base64ToUint8Array(payload.encodedState), 'sync');
+        if (Array.isArray(payload.updates) && payload.updates.length > 0) {
+          payload.updates.forEach((update) => {
+            Y.applyUpdate(doc, base64ToUint8Array(update), 'sync');
+          });
+        } else if (payload.encodedState) {
+          Y.applyUpdate(doc, base64ToUint8Array(payload.encodedState), 'sync');
+        }
       } catch (err) {
         console.error('[Colaby] Error applying CODE_SYNC state:', err);
+      }
+      // The server persists opaque Yjs updates and a plain-text recovery
+      // snapshot. If update history is incomplete, restore the snapshot and
+      // publish the resulting full Yjs state so subsequent clients can apply it.
+      if (typeof payload.content === 'string' && ytext.toString() !== payload.content) {
+        doc.transact(() => {
+          if (ytext.length) ytext.delete(0, ytext.length);
+          if (payload.content) ytext.insert(0, payload.content);
+        }, 'sync');
+        wsConnection.sendMessage('CODE_SNAPSHOT', {
+          filePath: canonical,
+          content: ytext.toString(),
+          update: uint8ArrayToBase64(Y.encodeStateAsUpdate(doc)),
+          userId: userRef.current?.userId || userRef.current?.id,
+          userName: userRef.current?.name || 'Collaborator'
+        });
       }
       // Ensure the iframe receives the latest state from CODE_SYNC
       if (iframeRef.current?.contentWindow && ytext.length > 0) {
