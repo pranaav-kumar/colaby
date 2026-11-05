@@ -75,8 +75,13 @@ done
 docker compose version >/dev/null
 
 if [[ ! -f .env ]]; then
-  printf 'Missing .env. Start with: cp .env.example .env and edit its values.\n' >&2
-  exit 1
+  if (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1; then
+    cp .env.example .env
+    printf 'Created local .env from .env.example. PostgreSQL is already running, so its Compose service will be reused.\n'
+  else
+    printf 'Missing .env and PostgreSQL is not running. Run: cp .env.example .env, set POSTGRES_PASSWORD, then retry.\n' >&2
+    exit 1
+  fi
 fi
 if [[ ! -f backend/collaboration-service/.env ]]; then
   printf 'Missing backend/collaboration-service/.env. Copy its .env.example and configure it.\n' >&2
